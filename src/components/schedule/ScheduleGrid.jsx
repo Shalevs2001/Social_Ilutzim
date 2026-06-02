@@ -20,7 +20,7 @@ function LegendChip({ colorClass, label }) {
  * Toolbar above the grid: week title, legend, auto-fill button.
  */
 function GridToolbar({ compact, onExport, exporting }) {
-  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots, scheduleVisible, setScheduleVisible } = useApp();
+  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots } = useApp();
   const [running, setRunning] = useState(false);
 
   const handleAutoFill = async () => {
@@ -79,22 +79,9 @@ function GridToolbar({ compact, onExport, exporting }) {
       {/* Auto-fill + clear + export buttons */}
       <div className={`flex items-center gap-2 ${!compact ? 'flex-1 flex justify-end' : ''}`}>
         <button
-          onClick={() => setScheduleVisible((v) => !v)}
-          title={scheduleVisible ? 'הסידור גלוי — לחץ להסתיר' : 'הסידור מוסתר — לחץ לפרסם'}
-          className={`rounded-xl border font-medium transition-colors ${
-            compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
-          } ${
-            scheduleVisible
-              ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
-              : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300'
-          }`}
-        >
-          {scheduleVisible ? '👁 גלוי' : '🚧 מוסתר'}
-        </button>
-        <button
           onClick={onExport}
           disabled={exporting}
-          title="העתק קישור לסידור"
+          title="הצג / העתק קישור לסידור"
           className={`rounded-xl border border-gray-200 text-gray-500 font-medium transition-colors hover:bg-gray-50 disabled:opacity-40 disabled:cursor-wait ${
             compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
           }`}
@@ -130,11 +117,12 @@ export function ScheduleGrid({ compact = false }) {
   const [adHocTarget,   setAdHocTarget]   = useState(null);
   const [exporting,     setExporting]     = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [showUrlBar,    setShowUrlBar]    = useState(false);
 
   const editorRef        = useRef(null);
   const footerRef        = useRef(null);   // wraps both collapsed + expanded panel
 
-  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, toast } = useApp();
+  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, toast, scheduleVisible, setScheduleVisible } = useApp();
 
   // ── Close helper (saves content) ──────────────────────────────────────────
   const closeNotes = useCallback(() => {
@@ -194,16 +182,22 @@ export function ScheduleGrid({ compact = false }) {
     editorRef.current?.focus();
   };
 
-  // ── Copy shareable URL ────────────────────────────────────────────────────
+  // ── Show / copy shareable URL ─────────────────────────────────────────────
+  const viewUrl = `${window.location.origin}/view`;
+
   const handleExport = async () => {
     setExporting(true);
     try {
-      const url = `${window.location.origin}/view`;
-      await navigator.clipboard.writeText(url).catch(() => {});
-      toast('הקישור הועתק ✓', 'success');
+      setShowUrlBar((v) => !v);
+      await navigator.clipboard.writeText(viewUrl).catch(() => {});
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleCopyUrl = async () => {
+    await navigator.clipboard.writeText(viewUrl).catch(() => {});
+    toast('הקישור הועתק ✓', 'success');
   };
 
   return (
@@ -220,10 +214,49 @@ export function ScheduleGrid({ compact = false }) {
             className="flex-1 bg-transparent text-sm border-b border-white/30 focus:border-white/70
               focus:outline-none placeholder-white/40 px-1 pb-0.5"
           />
+          {/* Visibility toggle */}
+          <button
+            onClick={() => setScheduleVisible((v) => !v)}
+            title={scheduleVisible ? 'הסידור גלוי לעובדים — לחץ להסתיר' : 'הסידור מוסתר — לחץ לפרסם'}
+            className={`shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-colors ${
+              scheduleVisible
+                ? 'bg-green-400/20 border-green-400/40 text-green-200 hover:bg-green-400/30'
+                : 'bg-white/10 border-white/20 text-white/50 hover:bg-white/20 hover:text-white/80'
+            }`}
+          >
+            <span>{scheduleVisible ? '👁' : '🚧'}</span>
+            <span>{scheduleVisible ? 'גלוי' : 'מוסתר'}</span>
+          </button>
         </div>
       )}
 
       <GridToolbar compact={compact} onExport={handleExport} exporting={exporting} />
+
+      {/* URL bar — shown when 🔗 is clicked */}
+      {showUrlBar && !compact && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border-b border-blue-100 shrink-0" dir="ltr">
+          <a
+            href={viewUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 text-sm font-mono text-blue-600 hover:text-blue-800 hover:underline truncate"
+          >
+            {viewUrl}
+          </a>
+          <button
+            onClick={handleCopyUrl}
+            className="shrink-0 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 rounded-lg px-2.5 py-1 transition-colors font-medium"
+          >
+            העתק
+          </button>
+          <button
+            onClick={() => setShowUrlBar(false)}
+            className="shrink-0 text-gray-400 hover:text-gray-600 text-sm leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Scrollable grid */}
       <div className="flex-1 overflow-auto p-2">
