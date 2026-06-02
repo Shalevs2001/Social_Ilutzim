@@ -3,6 +3,76 @@ import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase';
 import { SHIFT_TYPES, DAYS, DAY_KEYS } from '../../constants';
 
+// ── Mobile classic table ─────────────────────────────────────────────────────
+
+const DAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+
+const ROW_DEFS = [
+  { key: 'morning',  types: ['morning', 'weekend_morning'],           label: 'בוקר'     },
+  { key: 'short',    types: ['short_morning'],                         label: 'בוקר ק׳'  },
+  { key: 'middle',   types: ['middle', 'weekend_middle'],              label: 'אמצע'     },
+  { key: 'evening',  types: ['evening', 'weekend_evening'],            label: 'ערב'      },
+  { key: 'samples',  types: ['samples'],                               label: 'דגימות'   },
+  { key: 'reshem',   types: ['reshem_bet'],                            label: 'רשת ב׳'   },
+  { key: 'custom',   types: ['custom'],                                label: 'בלת״ם'    },
+];
+
+function MobileTable({ schedule, employees }) {
+  const findName = (id) => employees.find((e) => e.id === id)?.name ?? '';
+
+  // Only show rows that have at least one assigned employee across all days
+  const activeRows = ROW_DEFS.filter((row) =>
+    DAY_KEYS.some((dayKey) => {
+      const all = [...(schedule?.[dayKey]?.slots ?? []), ...(schedule?.[dayKey]?.adHocShifts ?? [])];
+      return all.some((s) => row.types.includes(s.type) && (s.employee || s.manualEmployee));
+    })
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-center" style={{ fontSize: '12px' }}>
+        <thead>
+          <tr className="bg-[#1a2e4a] text-white">
+            <th className="py-2 px-1 font-semibold text-[11px] w-14 text-right pr-2">משמרת</th>
+            {DAY_KEYS.map((d, i) => (
+              <th key={d} className="py-2 px-1 font-bold">{DAY_SHORT[i]}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {activeRows.map((row, ri) => (
+            <tr key={row.key} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              <td className="py-2 px-1 text-right pr-2 font-semibold text-gray-500 text-[11px] border-l-2 border-gray-200">
+                {row.label}
+              </td>
+              {DAY_KEYS.map((dayKey) => {
+                const all = [...(schedule?.[dayKey]?.slots ?? []), ...(schedule?.[dayKey]?.adHocShifts ?? [])];
+                const slot = all.find((s) => row.types.includes(s.type));
+                const names = [
+                  slot?.employee       ? findName(slot.employee)  : '',
+                  slot?.employee2      ? findName(slot.employee2) : '',
+                  slot?.manualEmployee ?? '',
+                ].filter(Boolean);
+                return (
+                  <td key={dayKey} className="py-2 px-0.5">
+                    {names.length > 0 ? (
+                      <div className="font-bold text-[#1a2e4a] leading-tight">
+                        {names.map((n, i) => <div key={i}>{n}</div>)}
+                      </div>
+                    ) : (
+                      <span className="text-gray-200">—</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Read-only slot card ──────────────────────────────────────────────────────
 
 function ViewSlot({ slot, employees }) {
@@ -226,9 +296,14 @@ export function ScheduleViewPage() {
         </div>
       )}
 
-      {/* Grid — responsive: 2 cols mobile → 4 tablet → 7 desktop */}
-      <div className="flex-1 p-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mx-auto max-w-[1100px]">
+      {/* Mobile: classic table */}
+      <div className="lg:hidden p-2">
+        <MobileTable schedule={schedule} employees={employees} />
+      </div>
+
+      {/* Desktop: card grid */}
+      <div className="hidden lg:block flex-1 p-3">
+        <div className="grid grid-cols-7 gap-2 mx-auto max-w-[1100px]">
           {DAY_KEYS.map((dayKey, i) => (
             <ViewDayColumn
               key={dayKey}
