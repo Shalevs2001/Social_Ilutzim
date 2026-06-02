@@ -204,7 +204,7 @@ export function ScheduleViewPage() {
 
       {/* Header */}
       <div className="bg-[#1a2e4a] text-white px-4 py-5 shrink-0 text-center">
-        <div className="text-2xl font-bold tracking-tight">סידור עבודה</div>
+        <div className="text-2xl font-bold tracking-tight">סידור משמרות</div>
         {scheduleDate && (
           <div className="text-white/75 text-base mt-1 font-medium">{scheduleDate}</div>
         )}
