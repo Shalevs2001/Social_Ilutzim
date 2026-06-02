@@ -133,25 +133,30 @@ Required GitHub Secrets (Settings → Secrets → Actions):
 - `HETZNER_USER` — SSH username (root)
 - `HETZNER_SSH_KEY` — private SSH key for deployment
 
-### Branch workflow (non-technical summary)
+### Branch workflow — ALWAYS follow this
 
-1. Always work on the `dev` branch — changes go to staging (port 3001) for review
-2. When ready to publish to production: merge `dev` into `main`
-3. Never commit directly to `main` unless it's an urgent fix
+`main` is protected — direct pushes are blocked. All changes must go through `dev` first.
 
-```bash
-git checkout dev          # switch to dev branch
-# ... make changes ...
-git add -A
-git commit -m "description"
-git push                  # → auto-deploys to staging
+1. Make sure you're on `dev` before starting any work:
+   ```bash
+   git checkout dev
+   ```
+2. Make changes, then commit and push:
+   ```bash
+   git add -A
+   git commit -m "description of change"
+   git push        # → auto-deploys to staging at port 3001
+   ```
+3. Check the change works on **http://46.224.228.163:3001**
+4. When ready for production, merge into `main`:
+   ```bash
+   git checkout main
+   git merge dev
+   git push        # → auto-deploys to production at port 3000
+   git checkout dev
+   ```
 
-# When ready for production:
-git checkout main
-git merge dev
-git push                  # → auto-deploys to production
-git checkout dev          # go back to dev
-```
+Never commit directly to `main`. If Claude Code suggests a push without first checking out `dev`, correct it.
 
 ### Firebase: sharedSchedule
 
