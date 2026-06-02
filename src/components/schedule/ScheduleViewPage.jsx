@@ -200,31 +200,35 @@ export function ScheduleViewPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex flex-col" dir="rtl">
 
       {/* Header */}
-      <div className="bg-[#1a2e4a] text-white px-4 py-3 shrink-0">
-        <div className="max-w-[1100px] mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-base">📋 סידור</span>
-            {scheduleDate && (
-              <span className="text-white/70 text-sm border-r border-white/20 pr-2 mr-1">
-                {scheduleDate}
-              </span>
-            )}
-          </div>
-          {savedDate && (
-            <span className="text-white/40 text-[11px]">עודכן {savedDate}</span>
-          )}
-        </div>
+      <div className="bg-[#1a2e4a] text-white px-4 py-5 shrink-0 text-center">
+        <div className="text-2xl font-bold tracking-tight">סידור עבודה</div>
+        {scheduleDate && (
+          <div className="text-white/75 text-base mt-1 font-medium">{scheduleDate}</div>
+        )}
+        {savedDate && (
+          <div className="text-white/35 text-xs mt-1">עודכן {savedDate}</div>
+        )}
       </div>
 
-      {/* Grid */}
-      <div className="flex-1 overflow-auto p-3">
-        <div
-          className="grid grid-cols-7 gap-2 mx-auto"
-          style={{ minWidth: '900px', maxWidth: '1100px' }}
-        >
+      {/* Notes — prominently above the grid */}
+      {scheduleNotes && (
+        <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-3 shrink-0">
+          <div className="max-w-[1100px] mx-auto">
+            <div className="text-xs font-bold text-yellow-700 uppercase tracking-wide mb-1.5">📌 הערות</div>
+            <div
+              className="text-base text-gray-800 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: scheduleNotes }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Grid — responsive: 2 cols mobile → 4 tablet → 7 desktop */}
+      <div className="flex-1 p-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mx-auto max-w-[1100px]">
           {DAY_KEYS.map((dayKey, i) => (
             <ViewDayColumn
               key={dayKey}
@@ -236,19 +240,6 @@ export function ScheduleViewPage() {
           ))}
         </div>
       </div>
-
-      {/* Notes footer */}
-      {scheduleNotes && (
-        <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3" dir="rtl">
-          <div className="max-w-[1100px] mx-auto">
-            <div className="text-xs font-semibold text-gray-400 mb-1.5">הערות</div>
-            <div
-              className="text-base text-gray-700 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: scheduleNotes }}
-            />
-          </div>
-        </div>
-      )}
 
     </div>
   );
