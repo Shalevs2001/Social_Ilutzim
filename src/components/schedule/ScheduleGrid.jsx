@@ -21,7 +21,7 @@ function LegendChip({ colorClass, label }) {
  * Toolbar above the grid: week title, legend, auto-fill button.
  */
 function GridToolbar({ compact }) {
-  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots } = useApp();
+  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots, scheduleVisible, setScheduleVisible } = useApp();
   const [running, setRunning] = useState(false);
 
   const handleAutoFill = async () => {
@@ -77,8 +77,21 @@ function GridToolbar({ compact }) {
         </div>
       )}
 
-      {/* Auto-fill + clear + export buttons */}
+      {/* Auto-fill + clear + visibility buttons */}
       <div className={`flex items-center gap-2 ${!compact ? 'flex-1 flex justify-end' : ''}`}>
+        <button
+          onClick={() => setScheduleVisible((v) => !v)}
+          title={scheduleVisible ? 'הסידור גלוי לעובדים — לחץ להסתיר' : 'הסידור מוסתר — לחץ לפרסם'}
+          className={`rounded-xl border font-medium transition-colors ${
+            compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
+          } ${
+            scheduleVisible
+              ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+              : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300'
+          }`}
+        >
+          {scheduleVisible ? '👁 גלוי' : '🚧 מוסתר'}
+        </button>
         <button
           onClick={clearSchedule}
           className={`rounded-xl border border-red-200 text-red-400 font-medium transition-colors hover:bg-red-50 ${
@@ -111,7 +124,7 @@ export function ScheduleGrid({ compact = false }) {
   const editorRef        = useRef(null);
   const footerRef        = useRef(null);   // wraps both collapsed + expanded panel
 
-  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, toast, scheduleVisible, setScheduleVisible } = useApp();
+  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, toast } = useApp();
 
   // ── Close helper (saves content) ──────────────────────────────────────────
   const closeNotes = useCallback(() => {
@@ -193,19 +206,6 @@ export function ScheduleGrid({ compact = false }) {
             className="flex-1 bg-transparent text-sm border-b border-white/30 focus:border-white/70
               focus:outline-none placeholder-white/40 px-1 pb-0.5"
           />
-          {/* Visibility toggle */}
-          <button
-            onClick={() => setScheduleVisible((v) => !v)}
-            title={scheduleVisible ? 'הסידור גלוי לעובדים — לחץ להסתיר' : 'הסידור מוסתר — לחץ לפרסם'}
-            className={`shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-colors ${
-              scheduleVisible
-                ? 'bg-green-400/20 border-green-400/40 text-green-200 hover:bg-green-400/30'
-                : 'bg-white/10 border-white/20 text-white/50 hover:bg-white/20 hover:text-white/80'
-            }`}
-          >
-            <span>{scheduleVisible ? '👁' : '🚧'}</span>
-            <span>{scheduleVisible ? 'גלוי' : 'מוסתר'}</span>
-          </button>
         </div>
       )}
 
