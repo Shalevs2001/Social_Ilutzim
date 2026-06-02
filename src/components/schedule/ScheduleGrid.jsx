@@ -20,7 +20,7 @@ function LegendChip({ colorClass, label }) {
  * Toolbar above the grid: week title, legend, auto-fill button.
  */
 function GridToolbar({ compact, onExport, exporting }) {
-  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots } = useApp();
+  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots, scheduleVisible, setScheduleVisible } = useApp();
   const [running, setRunning] = useState(false);
 
   const handleAutoFill = async () => {
@@ -79,14 +79,27 @@ function GridToolbar({ compact, onExport, exporting }) {
       {/* Auto-fill + clear + export buttons */}
       <div className={`flex items-center gap-2 ${!compact ? 'flex-1 flex justify-end' : ''}`}>
         <button
+          onClick={() => setScheduleVisible((v) => !v)}
+          title={scheduleVisible ? 'הסידור גלוי — לחץ להסתיר' : 'הסידור מוסתר — לחץ לפרסם'}
+          className={`rounded-xl border font-medium transition-colors ${
+            compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
+          } ${
+            scheduleVisible
+              ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+              : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300'
+          }`}
+        >
+          {scheduleVisible ? '👁 גלוי' : '🚧 מוסתר'}
+        </button>
+        <button
           onClick={onExport}
           disabled={exporting}
-          title="שתף סידור כקישור"
+          title="העתק קישור לסידור"
           className={`rounded-xl border border-gray-200 text-gray-500 font-medium transition-colors hover:bg-gray-50 disabled:opacity-40 disabled:cursor-wait ${
             compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
           }`}
         >
-          {exporting ? '⏳' : '📷'}
+          {exporting ? '⏳' : '🔗'}
         </button>
         <button
           onClick={clearSchedule}

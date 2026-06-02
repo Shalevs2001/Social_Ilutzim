@@ -105,8 +105,9 @@ export function AppProvider({ children, isAdmin = false }) {
   const [employees,      setEmployees]  = useLocalStorage('ks_employees',        DEFAULT_EMPLOYEES);
   const [settings,       setSettings]   = useLocalStorage('ks_settings_v5',      DEFAULT_SETTINGS);
   const [shiftPriority,  setShiftPriority] = useLocalStorage('ks_shift_priority', DEFAULT_SHIFT_PRIORITY);
-  const [scheduleDate,   setScheduleDate]  = useLocalStorage('ks_schedule_date',  '');
-  const [scheduleNotes,  setScheduleNotes] = useLocalStorage('ks_schedule_notes', '');
+  const [scheduleDate,    setScheduleDate]    = useLocalStorage('ks_schedule_date',    '');
+  const [scheduleNotes,   setScheduleNotes]   = useLocalStorage('ks_schedule_notes',  '');
+  const [scheduleVisible, setScheduleVisible] = useLocalStorage('ks_schedule_visible', false);
   // Employee notes — Firebase-backed for boss↔employee sync
   const [employeeNotes, _setEmployeeNotes] = useState({});
   const employeeNotesRef = useRef({});
@@ -764,12 +765,13 @@ export function AppProvider({ children, isAdmin = false }) {
         scheduleNotes,
         employees: employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
         shiftTimes,
+        visible: scheduleVisible,
         savedAt: Date.now(),
       }).catch(() => {});
     }, 1500);
     return () => clearTimeout(syncTimerRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schedule, scheduleDate, scheduleNotes, shiftTimes]);
+  }, [schedule, scheduleDate, scheduleNotes, shiftTimes, scheduleVisible]);
   // (employees excluded intentionally — roster changes don't require immediate sync)
 
   // kept for the copy-URL button
@@ -867,8 +869,9 @@ export function AppProvider({ children, isAdmin = false }) {
     dismissNotification,
 
     // Schedule metadata
-    scheduleDate,  setScheduleDate,
-    scheduleNotes, setScheduleNotes,
+    scheduleDate,    setScheduleDate,
+    scheduleNotes,   setScheduleNotes,
+    scheduleVisible, setScheduleVisible,
 
     // Derived
     getEmployeeShiftCount,

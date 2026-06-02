@@ -181,13 +181,13 @@ export function ScheduleViewPage() {
     );
   }
 
-  if (!data) {
+  if (!data || !data.visible) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
-        <div className="text-center">
-          <div className="text-4xl mb-3">📋</div>
-          <div className="text-gray-600 font-medium">הסידור טרם פורסם</div>
-          <div className="text-gray-400 text-sm mt-1">המנהל לא שיתף סידור עדיין</div>
+        <div className="text-center select-none">
+          <div className="text-7xl mb-4">🚧</div>
+          <div className="text-2xl font-bold text-gray-700 mb-1">הסידור בבנייה</div>
+          <div className="text-gray-400 text-sm">חזרו מאוחר יותר</div>
         </div>
       </div>
     );
