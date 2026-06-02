@@ -20,9 +20,20 @@ const ROW_DEFS = [
 function MobileTable({ schedule, employees, shiftTimes }) {
   const findName = (id) => employees.find((e) => e.id === id)?.name ?? '';
 
+  // adHoc-only types: show row whenever the slot exists (even without an assigned employee)
+  const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
+  const isAdHocRow = (row) => row.types.every((t) => ADHOC_ONLY.has(t));
+
   const activeRows = ROW_DEFS.filter((row) =>
     DAY_KEYS.some((dayKey) => {
-      const all = [...(schedule?.[dayKey]?.slots ?? []), ...(schedule?.[dayKey]?.adHocShifts ?? [])];
+      const adHoc = schedule?.[dayKey]?.adHocShifts ?? [];
+      const slots = schedule?.[dayKey]?.slots ?? [];
+      if (isAdHocRow(row)) {
+        // reshem_bet / custom — show if the slot was added at all
+        return adHoc.some((s) => row.types.includes(s.type));
+      }
+      // regular slots — show only if someone is assigned
+      const all = [...slots, ...adHoc];
       return all.some((s) => row.types.includes(s.type) && (s.employee || s.manualEmployee));
     })
   );
