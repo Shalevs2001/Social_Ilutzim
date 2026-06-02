@@ -45,7 +45,7 @@ function MobileTable({ schedule, employees, shiftTimes }) {
           <tr className="bg-[#1a2e4a] text-white">
             <th className="py-2 px-1 font-semibold text-[10px] w-12 text-right pr-2">משמרת</th>
             {DAY_KEYS.map((d, i) => (
-              <th key={d} className="py-2 px-0.5 font-bold">{DAY_SHORT[i]}</th>
+              <th key={d} className="py-2 px-0.5 font-bold border-r border-[#2a3e5a] last:border-r-0">{DAY_SHORT[i]}</th>
             ))}
           </tr>
         </thead>
@@ -58,7 +58,7 @@ function MobileTable({ schedule, employees, shiftTimes }) {
               {DAY_KEYS.map((dayKey) => {
                 const all = [...(schedule?.[dayKey]?.slots ?? []), ...(schedule?.[dayKey]?.adHocShifts ?? [])];
                 const slot = all.find((s) => row.types.includes(s.type));
-                if (!slot) return <td key={dayKey} className="py-1.5 px-0.5 text-gray-200">—</td>;
+                if (!slot) return <td key={dayKey} className="py-1.5 px-0.5 text-gray-200 border-r border-gray-100 last:border-r-0">—</td>;
 
                 const names = [
                   slot.employee       ? findName(slot.employee)  : '',
@@ -70,7 +70,7 @@ function MobileTable({ schedule, employees, shiftTimes }) {
                 const time = slot.time || shiftTimes?.[slot.type] || shiftDef.time || '';
 
                 return (
-                  <td key={dayKey} className="py-1.5 px-0.5 align-top">
+                  <td key={dayKey} className="py-1.5 px-0.5 align-top border-r border-gray-100 last:border-r-0">
                     {/* Employee names */}
                     {names.length > 0 ? (
                       <div className="font-bold text-[#1a2e4a] leading-snug">
@@ -107,6 +107,17 @@ function MobileTable({ schedule, employees, shiftTimes }) {
           ))}
         </tbody>
       </table>
+      {/* Legend */}
+      <div className="flex gap-3 justify-center mt-2 text-[10px] text-gray-500">
+        <span className="flex items-center gap-1">
+          <span className="bg-sky-100 text-sky-700 rounded px-1 font-bold text-[9px]">ב׳</span>
+          גיבוי רשת ב׳
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="bg-pink-100 text-pink-700 rounded px-1 font-bold text-[9px]">כ</span>
+          כוננות
+        </span>
+      </div>
     </div>
   );
 }
