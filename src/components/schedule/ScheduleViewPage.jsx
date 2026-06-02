@@ -71,6 +71,10 @@ function MobileTable({ schedule, employees, shiftTimes }) {
 
                 return (
                   <td key={dayKey} className="py-1.5 px-0.5 align-top border-r border-gray-100 last:border-r-0">
+                    {/* Custom shift label */}
+                    {slot.type === 'custom' && slot.label && (
+                      <div className="text-[9px] font-semibold text-purple-700 leading-tight mb-0.5">{slot.label}</div>
+                    )}
                     {/* Employee names */}
                     {names.length > 0 ? (
                       <div className="font-bold text-[#1a2e4a] leading-snug">
