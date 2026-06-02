@@ -753,6 +753,19 @@ export function AppProvider({ children, isAdmin = false }) {
     ));
   }, []);
 
+  const saveScheduleSnapshot = useCallback(async () => {
+    const id = `s${Date.now()}${Math.random().toString(36).slice(2, 5)}`;
+    await fbSet(ref(db, `savedSchedules/${id}`), {
+      schedule,
+      scheduleDate,
+      scheduleNotes,
+      employees: employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
+      shiftTimes,
+      savedAt: Date.now(),
+    });
+    return id;
+  }, [schedule, scheduleDate, scheduleNotes, employees, shiftTimes]);
+
   const updateEmployeeRequirementOverride = useCallback((empId, reqId, value) => {
     setEmployees((prev) => prev.map((e) =>
       e.id === empId
@@ -815,6 +828,7 @@ export function AppProvider({ children, isAdmin = false }) {
     clearEmployeeAvailability,
     updateEmployeeQuota,
     updateEmployeePreference,
+    saveScheduleSnapshot,
     updateEmployeeRequirementOverride,
     addEmployeeNote,
     toggleEmployeeNote,

@@ -81,7 +81,7 @@ function GridToolbar({ compact, onExport, exporting }) {
         <button
           onClick={onExport}
           disabled={exporting}
-          title="ייצוא סידור כתמונה"
+          title="שתף סידור כקישור"
           className={`rounded-xl border border-gray-200 text-gray-500 font-medium transition-colors hover:bg-gray-50 disabled:opacity-40 disabled:cursor-wait ${
             compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
           }`}
@@ -121,7 +121,7 @@ export function ScheduleGrid({ compact = false }) {
   const editorRef        = useRef(null);
   const footerRef        = useRef(null);   // wraps both collapsed + expanded panel
 
-  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes } = useApp();
+  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, saveScheduleSnapshot, toast } = useApp();
 
   // ── Close helper (saves content) ──────────────────────────────────────────
   const closeNotes = useCallback(() => {
@@ -181,22 +181,20 @@ export function ScheduleGrid({ compact = false }) {
     editorRef.current?.focus();
   };
 
-  // ── Export ────────────────────────────────────────────────────────────────
-  const handleExport = () => {
+  // ── Export as URL ─────────────────────────────────────────────────────────
+  const handleExport = async () => {
     setExporting(true);
-    setTimeout(() => {
-      try {
-        const canvas = exportScheduleCanvas(schedule, employees, shiftTimes, scheduleDate, scheduleNotes);
-        const link   = document.createElement('a');
-        link.download = 'סידור_משמרות.png';
-        link.href     = canvas.toDataURL('image/png');
-        link.click();
-      } catch (err) {
-        console.error('Export failed:', err);
-      } finally {
-        setExporting(false);
-      }
-    }, 30);
+    try {
+      const id  = await saveScheduleSnapshot();
+      const url = `${window.location.origin}/view/${id}`;
+      await navigator.clipboard.writeText(url).catch(() => {});
+      toast('הקישור הועתק ✓', 'success');
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast('שגיאה בשמירה', 'error');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
