@@ -107,10 +107,57 @@ Pure Canvas 2D drawing — no DOM capture. Chosen because html2canvas/html-to-im
 main.jsx
   /           → App (admin)
   /employee   → EmployeeViewPage
+  /view       → ScheduleViewPage (read-only, real-time)
 ```
 
-For SPA deployment (Netlify): `public/_redirects` must contain `/* /index.html 200`.
+All URLs are built dynamically from `window.location.origin` — no hardcoded domains anywhere.
 
-For Vercel: `vercel.json` with `"rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]`.
+Clipboard copy uses `src/utils/clipboard.js` which falls back to `execCommand` on HTTP (required for non-HTTPS servers).
+
+### Live server: Hetzner (46.224.228.163)
+
+- **Production** → port 3000 → served from `/var/www/shift-scheduler/`
+- **Staging** → port 3001 → served from `/var/www/shift-scheduler-staging/`
+- nginx config at `/etc/nginx/sites-available/shift-scheduler` (and `-staging`)
+- Static files served by nginx with `try_files $uri /index.html` for SPA routing
+
+### Auto-deploy via GitHub Actions
+
+Every push triggers a build on GitHub's servers and deploys via rsync over SSH.
+
+- `.github/workflows/deploy.yml` — runs on push to `main` → deploys to port 3000
+- `.github/workflows/deploy-staging.yml` — runs on push to `dev` → deploys to port 3001
+
+Required GitHub Secrets (Settings → Secrets → Actions):
+- `HETZNER_HOST` — server IP
+- `HETZNER_USER` — SSH username (root)
+- `HETZNER_SSH_KEY` — private SSH key for deployment
+
+### Branch workflow (non-technical summary)
+
+1. Always work on the `dev` branch — changes go to staging (port 3001) for review
+2. When ready to publish to production: merge `dev` into `main`
+3. Never commit directly to `main` unless it's an urgent fix
+
+```bash
+git checkout dev          # switch to dev branch
+# ... make changes ...
+git add -A
+git commit -m "description"
+git push                  # → auto-deploys to staging
+
+# When ready for production:
+git checkout main
+git merge dev
+git push                  # → auto-deploys to production
+git checkout dev          # go back to dev
+```
+
+### Firebase: sharedSchedule
+
+The admin schedule auto-syncs to Firebase `sharedSchedule` every 1.5s. The `/view` page listens in real-time with `onValue`. Visibility is controlled by `scheduleVisible` (localStorage → Firebase).
+
+For Netlify: `public/_redirects` contains `/* /index.html 200`.
+For Vercel: `vercel.json` with rewrites to `/index.html`.
 
 The admin view has no authentication — anyone with the URL can access it.

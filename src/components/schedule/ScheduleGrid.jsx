@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { copyToClipboard } from '../../utils/clipboard';
 import { exportScheduleCanvas } from '../../utils/exportSchedule';
 import { DAYS, DAY_KEYS, WEEKEND_DAYS } from '../../constants';
 import { DayColumn } from './DayColumn';
@@ -185,18 +186,12 @@ export function ScheduleGrid({ compact = false }) {
   // ── Show / copy shareable URL ─────────────────────────────────────────────
   const viewUrl = `${window.location.origin}/view`;
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      setShowUrlBar((v) => !v);
-      await navigator.clipboard.writeText(viewUrl).catch(() => {});
-    } finally {
-      setExporting(false);
-    }
+  const handleExport = () => {
+    setShowUrlBar((v) => !v);
   };
 
-  const handleCopyUrl = async () => {
-    await navigator.clipboard.writeText(viewUrl).catch(() => {});
+  const handleCopyUrl = () => {
+    copyToClipboard(viewUrl);
     toast('הקישור הועתק ✓', 'success');
   };
 

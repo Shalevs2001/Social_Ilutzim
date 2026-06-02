@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { copyToClipboard } from './utils/clipboard';
 import { ScheduleGrid }           from './components/schedule/ScheduleGrid';
 import { AvailabilityGrid }       from './components/availability/AvailabilityGrid';
 import { SettingsModal }          from './components/settings/SettingsModal';
@@ -229,7 +230,7 @@ function CopyLinkButton() {
   const url = `${window.location.origin}/employee`;
 
   const copy = () => {
-    navigator.clipboard.writeText(url).catch(() => {});
+    copyToClipboard(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

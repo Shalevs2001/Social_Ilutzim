@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { copyToClipboard } from '../../utils/clipboard';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
@@ -314,7 +315,7 @@ function LinksTab() {
   const url = `${window.location.origin}/employee`;
 
   const copy = () => {
-    navigator.clipboard.writeText(url).catch(() => {});
+    copyToClipboard(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
