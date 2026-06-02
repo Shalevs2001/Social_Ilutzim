@@ -17,10 +17,9 @@ const ROW_DEFS = [
   { key: 'custom',   types: ['custom'],                                label: 'בלת״ם'    },
 ];
 
-function MobileTable({ schedule, employees }) {
+function MobileTable({ schedule, employees, shiftTimes }) {
   const findName = (id) => employees.find((e) => e.id === id)?.name ?? '';
 
-  // Only show rows that have at least one assigned employee across all days
   const activeRows = ROW_DEFS.filter((row) =>
     DAY_KEYS.some((dayKey) => {
       const all = [...(schedule?.[dayKey]?.slots ?? []), ...(schedule?.[dayKey]?.adHocShifts ?? [])];
@@ -30,37 +29,65 @@ function MobileTable({ schedule, employees }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-center" style={{ fontSize: '12px' }}>
+      <table className="w-full border-collapse text-center" style={{ fontSize: '11px' }}>
         <thead>
           <tr className="bg-[#1a2e4a] text-white">
-            <th className="py-2 px-1 font-semibold text-[11px] w-14 text-right pr-2">משמרת</th>
+            <th className="py-2 px-1 font-semibold text-[10px] w-12 text-right pr-2">משמרת</th>
             {DAY_KEYS.map((d, i) => (
-              <th key={d} className="py-2 px-1 font-bold">{DAY_SHORT[i]}</th>
+              <th key={d} className="py-2 px-0.5 font-bold">{DAY_SHORT[i]}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {activeRows.map((row, ri) => (
-            <tr key={row.key} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-              <td className="py-2 px-1 text-right pr-2 font-semibold text-gray-500 text-[11px] border-l-2 border-gray-200">
+            <tr key={row.key} className={`border-b border-gray-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+              <td className="py-1.5 px-1 text-right pr-2 font-semibold text-gray-400 text-[10px] border-r border-gray-200 align-top pt-2">
                 {row.label}
               </td>
               {DAY_KEYS.map((dayKey) => {
                 const all = [...(schedule?.[dayKey]?.slots ?? []), ...(schedule?.[dayKey]?.adHocShifts ?? [])];
                 const slot = all.find((s) => row.types.includes(s.type));
+                if (!slot) return <td key={dayKey} className="py-1.5 px-0.5 text-gray-200">—</td>;
+
                 const names = [
-                  slot?.employee       ? findName(slot.employee)  : '',
-                  slot?.employee2      ? findName(slot.employee2) : '',
-                  slot?.manualEmployee ?? '',
+                  slot.employee       ? findName(slot.employee)  : '',
+                  slot.employee2      ? findName(slot.employee2) : '',
+                  slot.manualEmployee ?? '',
                 ].filter(Boolean);
+
+                const shiftDef = SHIFT_TYPES[slot.type] ?? SHIFT_TYPES.custom;
+                const time = slot.time || shiftTimes?.[slot.type] || shiftDef.time || '';
+
                 return (
-                  <td key={dayKey} className="py-2 px-0.5">
+                  <td key={dayKey} className="py-1.5 px-0.5 align-top">
+                    {/* Employee names */}
                     {names.length > 0 ? (
-                      <div className="font-bold text-[#1a2e4a] leading-tight">
+                      <div className="font-bold text-[#1a2e4a] leading-snug">
                         {names.map((n, i) => <div key={i}>{n}</div>)}
                       </div>
                     ) : (
                       <span className="text-gray-200">—</span>
+                    )}
+                    {/* Time */}
+                    {time && (
+                      <div className="text-[9px] text-gray-400 font-mono mt-0.5" style={{ direction: 'ltr' }}>
+                        {time}
+                      </div>
+                    )}
+                    {/* Badges */}
+                    <div className="flex justify-center gap-0.5 mt-0.5 flex-wrap">
+                      {slot.reshemBetMark && (
+                        <span className="text-[8px] bg-sky-100 text-sky-700 rounded px-0.5 font-bold">ב׳</span>
+                      )}
+                      {slot.konenutMark && (
+                        <span className="text-[8px] bg-pink-100 text-pink-700 rounded px-0.5 font-bold">כ</span>
+                      )}
+                    </div>
+                    {/* Note */}
+                    {slot.note && (
+                      <div className="text-[9px] text-gray-500 mt-0.5 leading-tight line-clamp-2">
+                        {slot.note}
+                      </div>
                     )}
                   </td>
                 );
@@ -298,7 +325,7 @@ export function ScheduleViewPage() {
 
       {/* Mobile: classic table */}
       <div className="lg:hidden p-2">
-        <MobileTable schedule={schedule} employees={employees} />
+        <MobileTable schedule={schedule} employees={employees} shiftTimes={shiftTimes} />
       </div>
 
       {/* Desktop: card grid */}
