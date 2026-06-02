@@ -258,7 +258,7 @@ function Header() {
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#38bcd4] flex items-center justify-center font-bold text-sm">כ</div>
           <div>
-            <div className="font-bold text-base leading-tight">סושיאל כאן חדשות</div>
+            <div className="font-bold text-base leading-tight">סושיעל כאן חדשות</div>
             <div className="text-xs text-[#38bcd4] leading-tight">סידור המשמרות השבועי</div>
           </div>
         </div>
