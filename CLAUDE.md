@@ -101,6 +101,15 @@ Pure Canvas 2D drawing — no DOM capture. Chosen because html2canvas/html-to-im
 | `SettingsModal.jsx` | 4 tabs: mandatory requirements, shift times, shift priority order, per-employee preferences |
 | `EmployeeView.jsx` | Employee-facing page: name picker → availability form → submit/approve flow |
 
+## Deployment & branching rules
+
+The site is deployed automatically via **Netlify** — every merge to `main` triggers a new build and goes live within ~1 minute. Do not modify `public/_redirects` or any Netlify/Vercel config files without a clear reason.
+
+**Branch discipline (important):**
+- Never push directly to `main`.
+- Always work on a separate branch and merge via pull request.
+- Before starting work, pull the latest `main` so you're not working on stale code.
+
 ## Routing & deployment
 
 ```
