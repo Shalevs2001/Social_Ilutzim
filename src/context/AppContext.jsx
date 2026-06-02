@@ -753,6 +753,14 @@ export function AppProvider({ children, isAdmin = false }) {
     ));
   }, []);
 
+  const updateEmployeeRequirementOverride = useCallback((empId, reqId, value) => {
+    setEmployees((prev) => prev.map((e) =>
+      e.id === empId
+        ? { ...e, requirementOverrides: { ...(e.requirementOverrides ?? {}), [reqId]: value } }
+        : e
+    ));
+  }, [setEmployees]);
+
   // ── Derived helpers ────────────────────────────────────────────────────────
 
   const getEmployeeShiftCount = useCallback(
@@ -807,6 +815,7 @@ export function AppProvider({ children, isAdmin = false }) {
     clearEmployeeAvailability,
     updateEmployeeQuota,
     updateEmployeePreference,
+    updateEmployeeRequirementOverride,
     addEmployeeNote,
     toggleEmployeeNote,
     deleteEmployeeNote,

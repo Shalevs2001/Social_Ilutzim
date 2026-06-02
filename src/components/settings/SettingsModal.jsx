@@ -36,46 +36,54 @@ const REQ_DEFS = [
 // ─── Tab 1: Mandatory requirements ───────────────────────────────────────────
 
 function RequirementsTab() {
-  const { settings, setSettings } = useApp();
+  const { employees, updateEmployeeRequirementOverride } = useApp();
+  const [expandedEmpId, setExpandedEmpId] = useState(null);
+  const regular = employees.filter((e) => !e.joker);
 
-  const updateCount = (id, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      mandatoryRequirements: prev.mandatoryRequirements.map((r) =>
-        r.id === id ? { ...r, minCount: Math.max(0, Number(value)) } : r
-      ),
-    }));
-  };
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-xs text-gray-500">
-        כל עובד חייב לכלול בהגשה לפחות את הדרישות הבאות. ערך 0 מבטל את הדרישה.
-      </p>
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-gray-400 mb-1">ריק = דרישה לא מוגדרת לעובד זה. 0 = כבוי.</p>
 
-      {REQ_DEFS.map((def) => {
-        const req   = settings.mandatoryRequirements.find((r) => r.id === def.id);
-        const count = req?.minCount ?? 0;
+      {regular.map((emp) => {
+        const isOpen = expandedEmpId === emp.id;
         return (
-          <div
-            key={def.id}
-            className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
-          >
-            <div className="text-sm font-medium text-gray-800">
-              משמרות {def.category} — {def.scope}
-              {def.note && <span className="text-xs font-normal text-gray-500"> ({def.note})</span>}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">מינימום:</span>
-              <input
-                type="number"
-                min={0}
-                max={7}
-                value={count}
-                onChange={(e) => updateCount(def.id, e.target.value)}
-                className="w-14 text-center border border-gray-300 rounded-xl px-2 py-1.5 text-sm font-bold focus:outline-none focus:border-[#38bcd4]"
-              />
-            </div>
+          <div key={emp.id} className="border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setExpandedEmpId(isOpen ? null : emp.id)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-right"
+            >
+              <span className="text-sm font-medium text-gray-800">{emp.name}</span>
+              <span className="text-gray-400 text-[10px] shrink-0">{isOpen ? '▲' : '▼'}</span>
+            </button>
+
+            {isOpen && (
+              <div className="px-4 py-3 bg-white border-t border-gray-100 flex flex-col gap-1.5">
+                {REQ_DEFS.map((def) => {
+                  const overrideVal = emp.requirementOverrides?.[def.id];
+                  return (
+                    <div key={def.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                      <span className="text-xs text-gray-700">
+                        {def.category} — {def.scope}
+                        {def.note && <span className="text-[10px] text-gray-400"> ({def.note})</span>}
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={7}
+                        value={overrideVal ?? ''}
+                        placeholder="—"
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? null : Math.max(0, Number(e.target.value));
+                          updateEmployeeRequirementOverride(emp.id, def.id, val);
+                        }}
+                        className="w-12 text-center border border-gray-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:border-[#38bcd4] placeholder-gray-300"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}
@@ -740,6 +748,7 @@ function PreferencesTab() {
                     </div>
                   </>
                 )}
+
               </div>
             )}
           </div>

@@ -59,11 +59,13 @@ export function useEmployeeValidation(empId) {
 
   // ── Rule 2: Mandatory shift type requirements ─────────────────────────────
   settings.mandatoryRequirements.forEach((req) => {
-    if (!req.minCount) return; // 0 = disabled
+    // Per-employee override → global (respecting enabled flag)
+    const globalMin    = req.enabled !== false ? req.minCount : 0;
+    const effectiveMin = emp.requirementOverrides?.[req.id] ?? globalMin;
+    if (!effectiveMin) return; // 0 = disabled
 
     let count;
     if (req.id === 'req_evening_total') {
-      // "samples" counts at most 1 towards the total evening requirement
       const nonSamples = countEffective(req.shiftTypes.filter((t) => t !== 'samples'));
       const hasSamples  = DAY_KEYS.some((d) => {
         const v = empAvail[d]?.samples;
@@ -74,9 +76,9 @@ export function useEmployeeValidation(empId) {
       count = countEffective(req.shiftTypes);
     }
 
-    if (count < req.minCount) {
+    if (count < effectiveMin) {
       const note = REQ_NOTES[req.id];
-      errors.push(`${req.label} — חסרות ${req.minCount - count} מתוך ${req.minCount}${note ? ` (${note})` : ''}`);
+      errors.push(`${req.label} — חסרות ${effectiveMin - count} מתוך ${effectiveMin}${note ? ` (${note})` : ''}`);
     }
   });
 
