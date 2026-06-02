@@ -754,8 +754,7 @@ export function AppProvider({ children, isAdmin = false }) {
   }, []);
 
   const saveScheduleSnapshot = useCallback(async () => {
-    const id = `s${Date.now()}${Math.random().toString(36).slice(2, 5)}`;
-    await fbSet(ref(db, `savedSchedules/${id}`), {
+    await fbSet(ref(db, 'sharedSchedule'), {
       schedule,
       scheduleDate,
       scheduleNotes,
@@ -763,7 +762,6 @@ export function AppProvider({ children, isAdmin = false }) {
       shiftTimes,
       savedAt: Date.now(),
     });
-    return id;
   }, [schedule, scheduleDate, scheduleNotes, employees, shiftTimes]);
 
   const updateEmployeeRequirementOverride = useCallback((empId, reqId, value) => {

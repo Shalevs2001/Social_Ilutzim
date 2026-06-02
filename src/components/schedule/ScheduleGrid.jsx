@@ -185,8 +185,8 @@ export function ScheduleGrid({ compact = false }) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const id  = await saveScheduleSnapshot();
-      const url = `${window.location.origin}/view/${id}`;
+      await saveScheduleSnapshot();
+      const url = `${window.location.origin}/view`;
       await navigator.clipboard.writeText(url).catch(() => {});
       toast('הקישור הועתק ✓', 'success');
     } catch (err) {

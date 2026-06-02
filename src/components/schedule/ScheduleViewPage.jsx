@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { ref, get } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase';
 import { SHIFT_TYPES, DAYS, DAY_KEYS } from '../../constants';
 
@@ -107,8 +106,8 @@ const ADHOC_POS = {
 };
 
 function ViewDayColumn({ dayKey, dayName, dayData, employees }) {
-  const slots      = dayData?.slots      ?? [];
-  const adHoc      = dayData?.adHocShifts ?? [];
+  const slots = dayData?.slots      ?? [];
+  const adHoc = dayData?.adHocShifts ?? [];
 
   const reshemSlot        = adHoc.find((s) => s.type === 'reshem_bet')     ?? null;
   const weekendMiddleSlot = adHoc.find((s) => s.type === 'weekend_middle') ?? null;
@@ -134,7 +133,6 @@ function ViewDayColumn({ dayKey, dayName, dayData, employees }) {
           {renderAdHocs(SLOT_POS[slot.type] ?? 'end')}
         </div>
       );
-      // Inject weekend_middle between morning and evening
       if (slot.type === 'weekend_morning' && weekendMiddleSlot) {
         result.push(
           <div key={weekendMiddleSlot.id} className="flex-1 flex flex-col gap-1.5">
@@ -149,15 +147,10 @@ function ViewDayColumn({ dayKey, dayName, dayData, employees }) {
 
   return (
     <div className="flex flex-col gap-1.5 rounded-xl border p-2.5 bg-white border-gray-200">
-      {/* Day header */}
       <div className="text-xs font-bold text-[#1a2e4a] pb-0.5 border-b border-gray-100">
         {dayName}
       </div>
-
-      {/* Reshet bet slot */}
       {reshemSlot && <ViewSlot slot={reshemSlot} employees={employees} />}
-
-      {/* Main slots */}
       <div className="flex-1 flex flex-col gap-1.5">
         {renderSlots()}
         {renderAdHocs('end')}
@@ -169,21 +162,16 @@ function ViewDayColumn({ dayKey, dayName, dayData, employees }) {
 // ── Main view page ───────────────────────────────────────────────────────────
 
 export function ScheduleViewPage() {
-  const { id } = useParams();
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
 
   useEffect(() => {
-    if (!id) { setError('מזהה לא תקין'); setLoading(false); return; }
-    get(ref(db, `savedSchedules/${id}`))
-      .then((snap) => {
-        if (!snap.exists()) { setError('הסידור לא נמצא'); }
-        else                { setData(snap.val()); }
-      })
-      .catch(() => setError('שגיאה בטעינת הסידור'))
-      .finally(() => setLoading(false));
-  }, [id]);
+    const unsub = onValue(ref(db, 'sharedSchedule'), (snap) => {
+      setData(snap.exists() ? snap.val() : null);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   if (loading) {
     return (
@@ -193,13 +181,13 @@ export function ScheduleViewPage() {
     );
   }
 
-  if (error) {
+  if (!data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
         <div className="text-center">
-          <div className="text-4xl mb-3">😕</div>
-          <div className="text-gray-600 font-medium">{error}</div>
-          <div className="text-gray-400 text-sm mt-1">הקישור אולי פג תוקף או שגוי</div>
+          <div className="text-4xl mb-3">📋</div>
+          <div className="text-gray-600 font-medium">הסידור טרם פורסם</div>
+          <div className="text-gray-400 text-sm mt-1">המנהל לא שיתף סידור עדיין</div>
         </div>
       </div>
     );
@@ -226,7 +214,7 @@ export function ScheduleViewPage() {
             )}
           </div>
           {savedDate && (
-            <span className="text-white/40 text-[11px]">נשמר {savedDate}</span>
+            <span className="text-white/40 text-[11px]">עודכן {savedDate}</span>
           )}
         </div>
       </div>
@@ -251,12 +239,14 @@ export function ScheduleViewPage() {
 
       {/* Notes footer */}
       {scheduleNotes && (
-        <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3 mx-auto w-full" style={{ maxWidth: '1100px' }}>
-          <div className="text-[10px] font-semibold text-gray-400 mb-1">הערות</div>
-          <div
-            className="text-sm text-gray-700 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: scheduleNotes }}
-          />
+        <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3" dir="rtl">
+          <div className="max-w-[1100px] mx-auto">
+            <div className="text-[10px] font-semibold text-gray-400 mb-1">הערות</div>
+            <div
+              className="text-sm text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: scheduleNotes }}
+            />
+          </div>
         </div>
       )}
 
