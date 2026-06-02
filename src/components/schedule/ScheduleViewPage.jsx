@@ -100,7 +100,7 @@ function MobileTable({ schedule, employees, shiftTimes }) {
                     </div>
                     {/* Note */}
                     {slot.note && (
-                      <div className="text-[9px] text-gray-500 mt-0.5 leading-tight line-clamp-2">
+                      <div className="text-[9px] text-gray-700 font-medium mt-0.5 leading-tight line-clamp-2 bg-yellow-50 rounded px-0.5">
                         {slot.note}
                       </div>
                     )}
