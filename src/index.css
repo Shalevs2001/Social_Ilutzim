@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RTL global defaults */
+* {
+  direction: rtl;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* Prevent layout shift from scrollbar appearing/disappearing between tabs */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+
+/* Shift block dragging ghost */
+.dragging-ghost {
+  opacity: 0.4;
+  transform: scale(0.97);
+}
+
+/* Drag-over highlight */
+.drop-target-active {
+  outline: 2px dashed #38bcd4;
+  outline-offset: 2px;
+  background-color: #e8f4f8;
+}
+
+/* Toast shake — plays when a duplicate toast is triggered */
+@keyframes toast-shake {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-6px); }
+  40%     { transform: translateX(6px); }
+  60%     { transform: translateX(-4px); }
+  80%     { transform: translateX(3px); }
+}
+.toast-shake {
+  animation: toast-shake 0.35s ease-in-out;
+}
