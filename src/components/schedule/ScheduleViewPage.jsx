@@ -31,7 +31,7 @@ function ViewSlot({ slot, employees }) {
       {/* Label + time */}
       <div className="font-bold leading-tight">{label}</div>
       {time && (
-        <div className="font-mono text-[10px] opacity-75 leading-tight mt-0.5" style={{ direction: 'ltr' }}>
+        <div className="font-mono text-sm font-semibold opacity-80 leading-tight mt-0.5" style={{ direction: 'ltr' }}>
           {time}
         </div>
       )}
@@ -82,8 +82,8 @@ function ViewSlot({ slot, employees }) {
 
       {/* Slot note */}
       {slot.note && (
-        <div className="mt-1.5 rounded-lg bg-black/10 px-2 py-1
-          text-[10px] font-semibold leading-snug break-words">
+        <div className="mt-1.5 rounded-lg bg-black/10 px-2 py-1.5
+          text-sm font-semibold leading-snug break-words">
           {slot.note}
         </div>
       )}
@@ -241,9 +241,9 @@ export function ScheduleViewPage() {
       {scheduleNotes && (
         <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3" dir="rtl">
           <div className="max-w-[1100px] mx-auto">
-            <div className="text-[10px] font-semibold text-gray-400 mb-1">הערות</div>
+            <div className="text-xs font-semibold text-gray-400 mb-1.5">הערות</div>
             <div
-              className="text-sm text-gray-700 leading-relaxed"
+              className="text-base text-gray-700 leading-relaxed"
               dangerouslySetInnerHTML={{ __html: scheduleNotes }}
             />
           </div>
