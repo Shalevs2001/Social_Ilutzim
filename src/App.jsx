@@ -259,7 +259,7 @@ function Header() {
           <div className="w-8 h-8 rounded-full bg-[#38bcd4] flex items-center justify-center font-bold text-sm">כ</div>
           <div>
             <div className="font-bold text-base leading-tight">סושיאל כאן חדשות</div>
-            <div className="text-xs text-[#38bcd4] leading-tight">סידור משמרות שבועי</div>
+            <div className="text-xs text-[#38bcd4] leading-tight">סידור המשמרות השבועי</div>
           </div>
         </div>
 
@@ -351,7 +351,7 @@ function AvailabilityView({ compact = false }) {
 function Shell() {
   const { activeView } = useApp();
 
-  useEffect(() => { document.title = 'סידור משמרות שבועי - מנהל'; }, []);
+  useEffect(() => { document.title = 'סידור המשמרות השבועי - מנהל'; }, []);
 
   return (
     <div className="min-h-screen bg-[#f0f6fb] flex flex-col" dir="rtl">

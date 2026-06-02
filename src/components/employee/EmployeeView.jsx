@@ -32,7 +32,7 @@ function EmployeeShell() {
   const employees = allEmployees.filter((e) => !e.joker);
   const [selectedId, setSelectedId] = useState(null);
 
-  useEffect(() => { document.title = 'סידור משמרות שבועי - עובדים'; }, []);
+  useEffect(() => { document.title = 'סידור המשמרות השבועי - עובדים'; }, []);
 
   const emp = employees.find((e) => e.id === selectedId);
   const sub = emp ? (submissions[emp.id] ?? {}) : {};
