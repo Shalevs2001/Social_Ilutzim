@@ -8,12 +8,12 @@ import { SHIFT_TYPES, DAYS, DAY_KEYS } from '../../constants';
 const DAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 
 const ROW_DEFS = [
+  { key: 'reshem',   types: ['reshem_bet'],                            label: 'רשת ב׳'   },
   { key: 'morning',  types: ['morning', 'weekend_morning'],           label: 'בוקר'     },
   { key: 'short',    types: ['short_morning'],                         label: 'בוקר ק׳'  },
   { key: 'middle',   types: ['middle', 'weekend_middle'],              label: 'אמצע'     },
   { key: 'evening',  types: ['evening', 'weekend_evening'],            label: 'ערב'      },
   { key: 'samples',  types: ['samples'],                               label: 'דגימות'   },
-  { key: 'reshem',   types: ['reshem_bet'],                            label: 'רשת ב׳'   },
   { key: 'custom',   types: ['custom'],                                label: 'בלת״ם'    },
 ];
 
