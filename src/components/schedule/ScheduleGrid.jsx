@@ -121,7 +121,7 @@ export function ScheduleGrid({ compact = false }) {
   const editorRef        = useRef(null);
   const footerRef        = useRef(null);   // wraps both collapsed + expanded panel
 
-  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, saveScheduleSnapshot, toast } = useApp();
+  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, toast } = useApp();
 
   // ── Close helper (saves content) ──────────────────────────────────────────
   const closeNotes = useCallback(() => {
@@ -181,17 +181,13 @@ export function ScheduleGrid({ compact = false }) {
     editorRef.current?.focus();
   };
 
-  // ── Export as URL ─────────────────────────────────────────────────────────
+  // ── Copy shareable URL ────────────────────────────────────────────────────
   const handleExport = async () => {
     setExporting(true);
     try {
-      await saveScheduleSnapshot();
       const url = `${window.location.origin}/view`;
       await navigator.clipboard.writeText(url).catch(() => {});
       toast('הקישור הועתק ✓', 'success');
-    } catch (err) {
-      console.error('Export failed:', err);
-      toast('שגיאה בשמירה', 'error');
     } finally {
       setExporting(false);
     }

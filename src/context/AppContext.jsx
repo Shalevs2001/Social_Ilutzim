@@ -753,16 +753,27 @@ export function AppProvider({ children, isAdmin = false }) {
     ));
   }, []);
 
-  const saveScheduleSnapshot = useCallback(async () => {
-    await fbSet(ref(db, 'sharedSchedule'), {
-      schedule,
-      scheduleDate,
-      scheduleNotes,
-      employees: employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
-      shiftTimes,
-      savedAt: Date.now(),
-    });
-  }, [schedule, scheduleDate, scheduleNotes, employees, shiftTimes]);
+  // ── Auto-sync to Firebase for the live /view page ────────────────────────
+  const syncTimerRef = useRef(null);
+  useEffect(() => {
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      fbSet(ref(db, 'sharedSchedule'), {
+        schedule,
+        scheduleDate,
+        scheduleNotes,
+        employees: employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
+        shiftTimes,
+        savedAt: Date.now(),
+      }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(syncTimerRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule, scheduleDate, scheduleNotes, shiftTimes]);
+  // (employees excluded intentionally — roster changes don't require immediate sync)
+
+  // kept for the copy-URL button
+  const saveScheduleSnapshot = useCallback(async () => {}, []);
 
   const updateEmployeeRequirementOverride = useCallback((empId, reqId, value) => {
     setEmployees((prev) => prev.map((e) =>
