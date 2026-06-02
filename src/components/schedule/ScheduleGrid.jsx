@@ -20,7 +20,7 @@ function LegendChip({ colorClass, label }) {
 /**
  * Toolbar above the grid: week title, legend, auto-fill button.
  */
-function GridToolbar({ compact, onExport, exporting }) {
+function GridToolbar({ compact }) {
   const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots } = useApp();
   const [running, setRunning] = useState(false);
 
@@ -80,16 +80,6 @@ function GridToolbar({ compact, onExport, exporting }) {
       {/* Auto-fill + clear + export buttons */}
       <div className={`flex items-center gap-2 ${!compact ? 'flex-1 flex justify-end' : ''}`}>
         <button
-          onClick={onExport}
-          disabled={exporting}
-          title="הצג / העתק קישור לסידור"
-          className={`rounded-xl border border-gray-200 text-gray-500 font-medium transition-colors hover:bg-gray-50 disabled:opacity-40 disabled:cursor-wait ${
-            compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
-          }`}
-        >
-          {exporting ? '⏳' : '🔗'}
-        </button>
-        <button
           onClick={clearSchedule}
           className={`rounded-xl border border-red-200 text-red-400 font-medium transition-colors hover:bg-red-50 ${
             compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
@@ -116,9 +106,7 @@ function GridToolbar({ compact, onExport, exporting }) {
  */
 export function ScheduleGrid({ compact = false }) {
   const [adHocTarget,   setAdHocTarget]   = useState(null);
-  const [exporting,     setExporting]     = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
-  const [showUrlBar,    setShowUrlBar]    = useState(false);
 
   const editorRef        = useRef(null);
   const footerRef        = useRef(null);   // wraps both collapsed + expanded panel
@@ -186,10 +174,6 @@ export function ScheduleGrid({ compact = false }) {
   // ── Show / copy shareable URL ─────────────────────────────────────────────
   const viewUrl = `${window.location.origin}/view`;
 
-  const handleExport = () => {
-    setShowUrlBar((v) => !v);
-  };
-
   const handleCopyUrl = () => {
     copyToClipboard(viewUrl);
     toast('הקישור הועתק ✓', 'success');
@@ -225,10 +209,10 @@ export function ScheduleGrid({ compact = false }) {
         </div>
       )}
 
-      <GridToolbar compact={compact} onExport={handleExport} exporting={exporting} />
+      <GridToolbar compact={compact} />
 
-      {/* URL bar — shown when 🔗 is clicked */}
-      {showUrlBar && !compact && (
+      {/* URL bar — always visible */}
+      {!compact && (
         <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border-b border-blue-100 shrink-0" dir="ltr">
           <a
             href={viewUrl}
@@ -243,12 +227,6 @@ export function ScheduleGrid({ compact = false }) {
             className="shrink-0 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 rounded-lg px-2.5 py-1 transition-colors font-medium"
           >
             העתק
-          </button>
-          <button
-            onClick={() => setShowUrlBar(false)}
-            className="shrink-0 text-gray-400 hover:text-gray-600 text-sm leading-none"
-          >
-            ✕
           </button>
         </div>
       )}
