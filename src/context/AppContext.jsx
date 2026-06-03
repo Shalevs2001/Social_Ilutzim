@@ -153,6 +153,23 @@ export function AppProvider({ children, isAdmin = false }) {
   const [availSnapshots, _setAvailSnapshots] = useState({});
   useEffect(() => onValue(ref(db, 'availabilitySnapshots'), (s) => _setAvailSnapshots(s.val() ?? {})), []);
 
+  // Employee roster — synced to Firebase by admin, read from Firebase by employee view
+  const [firebaseEmployees, _setFirebaseEmployees] = useState(null);
+  useEffect(() => {
+    if (isAdmin) return;
+    return onValue(ref(db, 'employeeRoster'), (s) => {
+      const val = s.val();
+      if (Array.isArray(val)) _setFirebaseEmployees(val);
+    });
+  }, [isAdmin]);
+  useEffect(() => {
+    if (!isAdmin) return;
+    fbSet(ref(db, 'employeeRoster'),
+      employees.map(({ id, name, joker }) => ({ id, name, joker: joker ?? false }))
+    ).catch(() => {});
+  }, [isAdmin, employees]);
+  const effectiveEmployees = (!isAdmin && firebaseEmployees) ? firebaseEmployees : employees;
+
   // Availability — driven by Firebase Realtime Database
   const [availability, _setAvailState] = useState(() => makeEmptyAvailability(DEFAULT_EMPLOYEES));
   const availabilityRef = useRef(availability);
@@ -187,8 +204,8 @@ export function AppProvider({ children, isAdmin = false }) {
     if (!draftEmpId || !availDraft) return availability;
     return { ...availability, [draftEmpId]: availDraft };
   }, [availability, availDraft, draftEmpId]);
-  const employeesRef = useRef(employees);
-  useEffect(() => { employeesRef.current = employees; }, [employees]);
+  const employeesRef = useRef(effectiveEmployees);
+  useEffect(() => { employeesRef.current = effectiveEmployees; }, [effectiveEmployees]);
 
   // ── Undo history (schedule + availability) ────────────────────────────────
   // entries: { type: 'schedule', data } | { type: 'availability', data }
@@ -807,7 +824,7 @@ export function AppProvider({ children, isAdmin = false }) {
     // State
     schedule, setSchedule,
     availability: mergedAvailability, setAvailability,
-    employees, setEmployees,
+    employees: effectiveEmployees, setEmployees,
     settings, setSettings,
     employeeNotes,
 
