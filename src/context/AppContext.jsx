@@ -153,7 +153,14 @@ export function AppProvider({ children, isAdmin = false }) {
   const [availSnapshots, _setAvailSnapshots] = useState({});
   useEffect(() => onValue(ref(db, 'availabilitySnapshots'), (s) => _setAvailSnapshots(s.val() ?? {})), []);
 
-  // Employee roster — synced to Firebase by admin, read from Firebase by employee view
+  // Employee roster — synced to Firebase by admin, read from Firebase by employee view.
+  // Guard: only write if employees differ from defaults, so staging (with empty localStorage)
+  // doesn't overwrite production data.
+  const defaultEmpIds = useMemo(() => new Set(DEFAULT_EMPLOYEES.map((e) => e.id)), []);
+  const hasCustomEmployees = useMemo(
+    () => employees.some((e) => !defaultEmpIds.has(e.id)) || employees.length !== DEFAULT_EMPLOYEES.length,
+    [employees, defaultEmpIds]
+  );
   const [firebaseEmployees, _setFirebaseEmployees] = useState(null);
   useEffect(() => {
     if (isAdmin) return;
@@ -163,11 +170,11 @@ export function AppProvider({ children, isAdmin = false }) {
     });
   }, [isAdmin]);
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !hasCustomEmployees) return;
     fbSet(ref(db, 'employeeRoster'),
       employees.map(({ id, name, joker }) => ({ id, name, joker: joker ?? false }))
     ).catch(() => {});
-  }, [isAdmin, employees]);
+  }, [isAdmin, hasCustomEmployees, employees]);
   const effectiveEmployees = (!isAdmin && firebaseEmployees) ? firebaseEmployees : employees;
 
   // Availability — driven by Firebase Realtime Database
@@ -774,6 +781,7 @@ export function AppProvider({ children, isAdmin = false }) {
   // ── Auto-sync to Firebase for the live /view page ────────────────────────
   const syncTimerRef = useRef(null);
   useEffect(() => {
+    if (!isAdmin) return;
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
       fbSet(ref(db, 'sharedSchedule'), {
