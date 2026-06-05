@@ -48,10 +48,18 @@ function makeEmptySchedule() {
   const schedule = {};
   DAY_KEYS.forEach((day) => {
     const isWeekend = WEEKEND_DAYS.includes(day);
+    const adHocShifts = isWeekend ? [] : [{
+      id: `${day}_reshem_bet`,
+      type: 'reshem_bet',
+      label: 'רשת ב׳',
+      time: '',
+      employee: null,
+      status: null,
+    }];
     schedule[day] = {
-      reshemBetBackup: false,
+      reshemBetBackup: !isWeekend,
       weekendMiddle: false,
-      adHocShifts: [],
+      adHocShifts,
       slots: isWeekend
         ? [
             { id: `${day}_morning`, type: 'weekend_morning', employee: null, status: null },
@@ -726,6 +734,10 @@ export function AppProvider({ children, isAdmin = false }) {
     setEmployees((prev) => prev.map((e) => (e.id === empId ? { ...e, quota } : e)));
   }, [setEmployees]);
 
+  const updateEmployeeIsRashetBet = useCallback((empId, value) => {
+    setEmployees((prev) => prev.map((e) => (e.id === empId ? { ...e, isRashetBet: value } : e)));
+  }, [setEmployees]);
+
   // ── Auto-fill ──────────────────────────────────────────────────────────────
 
   const autoFill = useCallback(() => {
@@ -863,6 +875,7 @@ export function AppProvider({ children, isAdmin = false }) {
     setAvail,
     clearEmployeeAvailability,
     updateEmployeeQuota,
+    updateEmployeeIsRashetBet,
     updateEmployeePreference,
     saveScheduleSnapshot,
     updateEmployeeRequirementOverride,

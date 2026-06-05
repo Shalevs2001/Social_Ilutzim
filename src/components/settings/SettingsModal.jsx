@@ -54,35 +54,57 @@ function RequirementsTab() {
               onClick={() => setExpandedEmpId(isOpen ? null : emp.id)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-right"
             >
-              <span className="text-sm font-medium text-gray-800">{emp.name}</span>
+              <span className="text-sm font-medium text-gray-800">
+                {emp.name}
+                {emp.isRashetBet && <span className="text-[10px] text-sky-600 font-normal"> · עורך רשת ב׳</span>}
+              </span>
               <span className="text-gray-400 text-[10px] shrink-0">{isOpen ? '▲' : '▼'}</span>
             </button>
 
             {isOpen && (
               <div className="px-4 py-3 bg-white border-t border-gray-100 flex flex-col gap-1.5">
-                {REQ_DEFS.map((def) => {
-                  const overrideVal = emp.requirementOverrides?.[def.id];
-                  return (
-                    <div key={def.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                      <span className="text-xs text-gray-700">
-                        {def.category} — {def.scope}
-                        {def.note && <span className="text-[10px] text-gray-400"> ({def.note})</span>}
-                      </span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={7}
-                        value={overrideVal ?? ''}
-                        placeholder="—"
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? null : Math.max(0, Number(e.target.value));
-                          updateEmployeeRequirementOverride(emp.id, def.id, val);
-                        }}
-                        className="w-12 text-center border border-gray-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:border-[#38bcd4] placeholder-gray-300"
-                      />
-                    </div>
-                  );
-                })}
+                {emp.isRashetBet ? (
+                  // Rashet-bet editors: a single optional shift count (0–6), no weekend/evening obligations.
+                  <div className="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">
+                    <span className="text-xs text-gray-700">משמרות רשת ב׳ <span className="text-[10px] text-gray-400">(0–6)</span></span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={6}
+                      value={emp.requirementOverrides?.reshet_bet_count ?? ''}
+                      placeholder="—"
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? null : Math.max(0, Math.min(6, Number(e.target.value)));
+                        updateEmployeeRequirementOverride(emp.id, 'reshet_bet_count', val);
+                      }}
+                      className="w-12 text-center border border-gray-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:border-[#38bcd4] placeholder-gray-300"
+                    />
+                  </div>
+                ) : (
+                  REQ_DEFS.map((def) => {
+                    const overrideVal = emp.requirementOverrides?.[def.id];
+                    return (
+                      <div key={def.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                        <span className="text-xs text-gray-700">
+                          {def.category} — {def.scope}
+                          {def.note && <span className="text-[10px] text-gray-400"> ({def.note})</span>}
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={7}
+                          value={overrideVal ?? ''}
+                          placeholder="—"
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? null : Math.max(0, Number(e.target.value));
+                            updateEmployeeRequirementOverride(emp.id, def.id, val);
+                          }}
+                          className="w-12 text-center border border-gray-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:border-[#38bcd4] placeholder-gray-300"
+                        />
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
@@ -95,7 +117,7 @@ function RequirementsTab() {
 // ─── Tab 2: Employee quotas ───────────────────────────────────────────────────
 
 // Reusable row for a single employee
-function EmpRow({ emp, onDelete, onQuotaChange, onMinQuotaChange, onToggleGender }) {
+function EmpRow({ emp, onDelete, onQuotaChange, onMinQuotaChange, onToggleGender, onToggleRashetBet }) {
   const [confirm, setConfirm] = useState(false);
   const isFemale = emp.gender === 'female';
   const minQ = emp.minQuota ?? 0;
@@ -119,7 +141,7 @@ function EmpRow({ emp, onDelete, onQuotaChange, onMinQuotaChange, onToggleGender
   }
 
   return (
-    <div className={`grid items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 gap-x-2 gap-y-0 ${emp.joker ? 'grid-cols-[1fr_28px_32px]' : 'grid-cols-[1fr_28px_116px_32px]'}`}>
+    <div className={`grid items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 gap-x-2 gap-y-0 ${emp.joker ? 'grid-cols-[1fr_28px_32px]' : 'grid-cols-[1fr_28px_28px_116px_32px]'}`}>
       <span className="text-sm font-medium text-gray-800 truncate">{emp.name}</span>
       <button
         onClick={() => onToggleGender(emp.id)}
@@ -132,6 +154,19 @@ function EmpRow({ emp, onDelete, onQuotaChange, onMinQuotaChange, onToggleGender
       >
         {isFemale ? 'נ' : 'ז'}
       </button>
+      {!emp.joker && (
+        <button
+          onClick={() => onToggleRashetBet(emp.id, !emp.isRashetBet)}
+          title={emp.isRashetBet ? 'עורך רשת ב׳ — לחץ לביטול' : 'הגדר כעורך רשת ב׳'}
+          className={`text-[10px] font-bold w-6 h-6 rounded-full border transition-colors leading-none flex items-center justify-center ${
+            emp.isRashetBet
+              ? 'bg-sky-100 border-sky-400 text-sky-700'
+              : 'bg-gray-50 border-gray-200 text-gray-300 hover:border-sky-300 hover:text-sky-500'
+          }`}
+        >
+          ר
+        </button>
+      )}
       {!emp.joker && (
         <div className="flex items-center gap-1">
           <input
@@ -157,7 +192,7 @@ function EmpRow({ emp, onDelete, onQuotaChange, onMinQuotaChange, onToggleGender
 }
 
 function EmployeesTab() {
-  const { employees, setEmployees } = useApp();
+  const { employees, setEmployees, updateEmployeeIsRashetBet } = useApp();
   const [newName,      setNewName]      = useState('');
   const [newJokerName, setNewJokerName] = useState('');
 
@@ -221,6 +256,9 @@ function EmployeesTab() {
 
       {/* ── Regular employees ── */}
       <p className="text-xs text-gray-500">עובדים רגילים</p>
+      <p className="text-[10px] text-gray-400 -mt-1">
+        כפתור <span className="font-bold text-sky-600">ר</span> = הגדרה כעורך רשת ב׳ (משובץ אוטומטית רק למשמרות רשת ב׳).
+      </p>
       <div className="grid grid-cols-[1fr_116px_32px] gap-2 text-[10px] font-semibold text-gray-400 px-3">
         <span>שם</span>
         <div className="flex items-center justify-center gap-2 text-center">
@@ -229,7 +267,7 @@ function EmployeesTab() {
         <span/>
       </div>
       {regular.map((emp) => (
-        <EmpRow key={emp.id} emp={emp} onDelete={deleteEmployee} onQuotaChange={updateQuota} onMinQuotaChange={updateMinQuota} onToggleGender={toggleGender} />
+        <EmpRow key={emp.id} emp={emp} onDelete={deleteEmployee} onQuotaChange={updateQuota} onMinQuotaChange={updateMinQuota} onToggleGender={toggleGender} onToggleRashetBet={updateEmployeeIsRashetBet} />
       ))}
       <div className="flex gap-2 pt-1">
         <input value={newName} onChange={(e) => setNewName(e.target.value)}

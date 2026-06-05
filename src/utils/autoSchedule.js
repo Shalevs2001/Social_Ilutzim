@@ -66,13 +66,15 @@ export function bestAvailability(empId, dayKey, slotType, availability, boundTyp
   // Custom slot with no boundType — skip (no availability data to check)
   if (lookup === 'custom') return null;
 
-  // reshem_bet (or custom bound to morning-family): check morning + short_morning
+  // reshem_bet (or custom bound to morning-family): check the morning-family
+  // availability for the day — morning + short_morning on weekdays, or
+  // weekend_morning on Fri/Sat (so weekend reshem_bet shifts can auto-fill too).
   if (lookup === 'reshem_bet') {
-    const morAv   = availability[empId]?.[dayKey]?.morning       ?? null;
-    const shortAv = availability[empId]?.[dayKey]?.short_morning ?? null;
-    if (!morAv && !shortAv) return null;
-    if (morAv === 'regular' || shortAv === 'regular') return { av: 'regular', effectiveType: slotType };
-    if (morAv === 'low'     || shortAv === 'low')     return { av: 'low',     effectiveType: slotType };
+    const dayAvail = availability[empId]?.[dayKey] ?? {};
+    const morningFamily = [dayAvail.morning, dayAvail.short_morning, dayAvail.weekend_morning];
+    if (morningFamily.every((v) => !v)) return null;
+    if (morningFamily.includes('regular')) return { av: 'regular', effectiveType: slotType };
+    if (morningFamily.includes('low'))     return { av: 'low',     effectiveType: slotType };
     return null;
   }
 
@@ -98,6 +100,12 @@ export function bestAvailability(empId, dayKey, slotType, availability, boundTyp
 export function runAutoSchedule(schedule, availability, employees, priorityOrder = DEFAULT_SHIFT_PRIORITY) {
   const result = JSON.parse(JSON.stringify(schedule));
   employees = employees.filter((e) => !e.joker);
+
+  // Rashet-bet editors are auto-assigned ONLY to reshem_bet slots, and
+  // reshem_bet slots are auto-filled ONLY by rashet-bet editors. (Manual
+  // placement is unaffected — this rule only governs auto-scheduling.)
+  const passesRashetRule = (emp, slotType) =>
+    slotType === 'reshem_bet' ? !!emp.isRashetBet : !emp.isRashetBet;
 
   const empShiftCount   = Object.fromEntries(employees.map((e) => [e.id, 0]));
   const empWeekendCount = Object.fromEntries(employees.map((e) => [e.id, 0]));
@@ -142,6 +150,7 @@ export function runAutoSchedule(schedule, availability, employees, priorityOrder
   // Live eligible count — respects current quota/day/weekend state
   const liveEligible = ({ dayKey, slotType, boundType }) =>
     employees.filter((emp) => {
+      if (!passesRashetRule(emp, slotType)) return false;
       if (empDayKey.has(`${emp.id}:${dayKey}`)) return false;
       if (WEEKEND_DAYS.includes(dayKey) && empWeekendCount[emp.id] >= 1) return false;
       const best = bestAvailability(emp.id, dayKey, slotType, availability, boundType);
@@ -202,6 +211,7 @@ export function runAutoSchedule(schedule, availability, employees, priorityOrder
 
     const candidates = employees
       .filter((emp) => {
+        if (!passesRashetRule(emp, slotType)) return false;
         if (empDayKey.has(`${emp.id}:${dayKey}`)) return false;
         if (WEEKEND_DAYS.includes(dayKey) && empWeekendCount[emp.id] >= 1) return false;
         const best = bestAvailability(emp.id, dayKey, slotType, availability, boundType);
@@ -292,6 +302,7 @@ export function runAutoSchedule(schedule, availability, employees, priorityOrder
     const candidates = employees
       .filter((emp) => {
         if (emp.id === primaryEmp) return false;
+        if (!passesRashetRule(emp, slotType)) return false;
         if (empDayKey.has(`${emp.id}:${dayKey}`)) return false;
         if (WEEKEND_DAYS.includes(dayKey) && empWeekendCount[emp.id] >= 1) return false;
         const best = bestAvailability(emp.id, dayKey, slotType, availability, boundType);
@@ -312,6 +323,7 @@ export function runAutoSchedule(schedule, availability, employees, priorityOrder
         if (primaryObj2?.preferences?.avoidWithMandatory?.includes(emp.id)) return false;
         // Don't use an employee as employee2 if they could fill a still-empty primary slot
         const couldFillPrimary = stillEmptyPrimary.some(({ dayKey: ed, slotType: est, boundType: ebt }) => {
+          if (!passesRashetRule(emp, est)) return false;
           if (empDayKey.has(`${emp.id}:${ed}`)) return false;
           if (WEEKEND_DAYS.includes(ed) && empWeekendCount[emp.id] >= 1) return false;
           const b = bestAvailability(emp.id, ed, est, availability, ebt);
