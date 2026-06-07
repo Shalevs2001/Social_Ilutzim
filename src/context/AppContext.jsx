@@ -134,7 +134,6 @@ export function AppProvider({ children, isAdmin = false }) {
     arr.sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0));
     _setArchivedSchedules(arr);
   }), []);
-  const [scheduleVisible, setScheduleVisible] = useLocalStorage('ks_schedule_visible', false);
   // Employee notes — Firebase-backed for boss↔employee sync
   const [employeeNotes, _setEmployeeNotes] = useState({});
   const employeeNotesRef = useRef({});
@@ -838,26 +837,26 @@ export function AppProvider({ children, isAdmin = false }) {
     ));
   }, []);
 
-  // ── Auto-sync to Firebase for the live /view page ────────────────────────
-  const syncTimerRef = useRef(null);
-  useEffect(() => {
-    if (!isAdmin) return;
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => {
-      fbSet(ref(db, 'sharedSchedule'), {
+  // ── Manual publish to Firebase for the live /view page ───────────────────
+  // The /view page stays frozen on the last published version. The admin can
+  // keep editing a new schedule without affecting what viewers see until they
+  // explicitly press "עדכן גרסה לצפייה".
+  const publishView = useCallback(async () => {
+    try {
+      await fbSet(ref(db, 'sharedSchedule'), {
         schedule,
         scheduleDate,
         scheduleNotes,
         employees: employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
         shiftTimes,
-        visible: scheduleVisible,
+        visible: true,
         savedAt: Date.now(),
-      }).catch(() => {});
-    }, 1500);
-    return () => clearTimeout(syncTimerRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schedule, scheduleDate, scheduleNotes, shiftTimes, scheduleVisible]);
-  // (employees excluded intentionally — roster changes don't require immediate sync)
+      });
+      toast('הגרסה לצפייה עודכנה', 'success');
+    } catch {
+      toast('עדכון הגרסה לצפייה נכשל', 'error');
+    }
+  }, [schedule, scheduleDate, scheduleNotes, employees, shiftTimes, toast]);
 
   // kept for the copy-URL button
   const saveScheduleSnapshot = useCallback(async () => {}, []);
@@ -962,7 +961,7 @@ export function AppProvider({ children, isAdmin = false }) {
     scheduleNotes,   setScheduleNotes,
     weekStart,       setWeekStart,
     weekTitle,
-    scheduleVisible, setScheduleVisible,
+    publishView,
 
     // Derived
     getEmployeeShiftCount,

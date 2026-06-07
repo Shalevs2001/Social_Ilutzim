@@ -160,7 +160,7 @@ Never commit directly to `main`. If Claude Code suggests a push without first ch
 
 ### Firebase: sharedSchedule
 
-The admin schedule auto-syncs to Firebase `sharedSchedule` every 1.5s. The `/view` page listens in real-time with `onValue`. Visibility is controlled by `scheduleVisible` (localStorage → Firebase).
+The admin publishes the schedule to Firebase `sharedSchedule` manually via the "עדכן גרסה לצפייה" button (`publishView` in AppContext). The `/view` page listens in real-time with `onValue`, so it stays frozen on the last published version even while the admin edits a new schedule. A published version is always `visible: true`; if nothing was ever published the `/view` page shows the "under construction" placeholder.
 
 For Netlify: `public/_redirects` contains `/* /index.html 200`.
 For Vercel: `vercel.json` with rewrites to `/index.html`.

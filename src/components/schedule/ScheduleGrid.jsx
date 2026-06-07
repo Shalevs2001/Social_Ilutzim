@@ -22,7 +22,7 @@ function LegendChip({ colorClass, label }) {
  * Toolbar above the grid: week title, legend, auto-fill button.
  */
 function GridToolbar({ compact }) {
-  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots, scheduleVisible, setScheduleVisible } = useApp();
+  const { autoFill, clearSchedule, showLowPriority, setShowLowPriority, showMissingSlots, setShowMissingSlots, publishView } = useApp();
   const [running, setRunning] = useState(false);
 
   const handleAutoFill = async () => {
@@ -78,20 +78,16 @@ function GridToolbar({ compact }) {
         </div>
       )}
 
-      {/* Auto-fill + clear + visibility buttons */}
+      {/* Auto-fill + clear + publish buttons */}
       <div className={`flex items-center gap-2 ${!compact ? 'flex-1 flex justify-end' : ''}`}>
         <button
-          onClick={() => setScheduleVisible((v) => !v)}
-          title={scheduleVisible ? 'הסידור גלוי לעובדים — לחץ להסתיר' : 'הסידור מוסתר — לחץ לפרסם'}
-          className={`rounded-xl border font-medium transition-colors ${
+          onClick={publishView}
+          title="עדכן את הגרסה הגלויה לעובדים בעמוד הצפייה לשיבוץ הנוכחי"
+          className={`rounded-xl border border-green-300 bg-green-50 text-green-700 font-medium transition-colors hover:bg-green-100 ${
             compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
-          } ${
-            scheduleVisible
-              ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
-              : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300'
           }`}
         >
-          {scheduleVisible ? '👁 גלוי' : '🚧 מוסתר'}
+          🔄 עדכן גרסה לצפייה
         </button>
         <button
           onClick={clearSchedule}
