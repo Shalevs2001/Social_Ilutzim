@@ -3,282 +3,229 @@ import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase';
 import { SHIFT_TYPES, DAYS, DAY_KEYS } from '../../constants';
 
-// ── Mobile classic table ─────────────────────────────────────────────────────
+// ── Fixed, lean palette ───────────────────────────────────────────────────────
+// Deliberately independent of the app's per-shift / per-status colors. Just a
+// small set of neutral tones so the exported view stays clean and consistent.
+const C = {
+  headerBg:   '#1a2e4a',  // top header row + shift column
+  headerText: '#ffffff',
+  rowOdd:     '#ffffff',
+  rowEven:    '#f3f6fa',
+  border:     '#d7deea',
+  name:       '#1a2e4a',  // employee names
+  muted:      '#8a96a8',  // empty cells / secondary text
+  shiftHours: '#aebacc', // hours under the shift label (on dark bg)
+  deviation:  '#c2410c',  // changed hours — stands out
+  deviationBg:'#fff4ec',
+};
 
-const DAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
-
+// Shift rows, top → bottom. Each row groups the weekday + weekend variants that
+// share the same logical slot. `timeType` is the type whose hours represent the
+// row's standard hours (shown in the right-hand shift column).
 const ROW_DEFS = [
-  { key: 'reshem',   types: ['reshem_bet'],                            label: 'רשת ב׳'   },
-  { key: 'morning',  types: ['morning', 'weekend_morning'],           label: 'בוקר'     },
-  { key: 'short',    types: ['short_morning'],                         label: 'בוקר ק׳'  },
-  { key: 'middle',   types: ['middle', 'weekend_middle'],              label: 'אמצע'     },
-  { key: 'evening',  types: ['evening', 'weekend_evening'],            label: 'ערב'      },
-  { key: 'samples',  types: ['samples'],                               label: 'דגימות'   },
-  { key: 'custom',   types: ['custom'],                                label: 'בלת״ם'    },
+  { key: 'reshem',  types: ['reshem_bet'],                  label: 'רשת ב׳',  timeType: null },
+  { key: 'morning', types: ['morning', 'weekend_morning'], label: 'בוקר',    timeType: 'morning' },
+  { key: 'short',   types: ['short_morning'],               label: 'בוקר קצר', timeType: 'short_morning' },
+  { key: 'middle',  types: ['middle', 'weekend_middle'],    label: 'אמצע',    timeType: 'middle' },
+  { key: 'evening', types: ['evening', 'weekend_evening'],  label: 'ערב',     timeType: 'evening' },
+  { key: 'samples', types: ['samples'],                     label: 'דגימות',  timeType: 'samples' },
+  { key: 'custom',  types: ['custom'],                      label: 'בלת״ם',   timeType: null },
 ];
 
-function MobileTable({ schedule, employees, shiftTimes }) {
+const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Default (standard) hours for a shift type, from settings or the constant. */
+function defaultTimeFor(type, shiftTimes) {
+  return shiftTimes?.[type] || SHIFT_TYPES[type]?.time || '';
+}
+
+/**
+ * Compare a slot's custom hours against the standard hours and describe only the
+ * change in a short, human form:
+ *   end moved earlier   → "עד 14:00"
+ *   start moved later    → "מ-17:00"
+ *   both changed / odd   → the full custom range
+ * Returns null when there's no deviation.
+ */
+function formatDeviation(slotTime, defaultTime) {
+  if (!slotTime) return null;
+  if (!defaultTime || slotTime === defaultTime) return null;
+
+  const sep = /\s*[–—-]\s*/;
+  const sp = slotTime.split(sep).map((s) => s.trim());
+  const dp = defaultTime.split(sep).map((s) => s.trim());
+
+  if (sp.length === 2 && dp.length === 2) {
+    const startDiff = sp[0] !== dp[0];
+    const endDiff   = sp[1] !== dp[1];
+    if (startDiff && !endDiff) return `מ-${sp[0]}`;
+    if (endDiff && !startDiff) return `עד ${sp[1]}`;
+  }
+  return slotTime;
+}
+
+// ── Table ──────────────────────────────────────────────────────────────────────
+
+function ScheduleTable({ schedule, employees, shiftTimes }) {
   const findName = (id) => employees.find((e) => e.id === id)?.name ?? '';
 
-  // adHoc-only types: show row whenever the slot exists (even without an assigned employee)
-  const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
-  const isAdHocRow = (row) => row.types.every((t) => ADHOC_ONLY.has(t));
+  const slotsForRowDay = (row, dayKey) => {
+    const all = [
+      ...(schedule?.[dayKey]?.slots ?? []),
+      ...(schedule?.[dayKey]?.adHocShifts ?? []),
+    ];
+    return all.filter((s) => row.types.includes(s.type));
+  };
 
+  const slotHasContent = (s) =>
+    Boolean(s.employee || s.employee2 || s.manualEmployee);
+
+  // A row is shown when at least one day has something to display in it.
+  const isAdHocRow = (row) => row.types.every((t) => ADHOC_ONLY.has(t));
   const activeRows = ROW_DEFS.filter((row) =>
     DAY_KEYS.some((dayKey) => {
-      const adHoc = schedule?.[dayKey]?.adHocShifts ?? [];
-      const slots = schedule?.[dayKey]?.slots ?? [];
-      if (isAdHocRow(row)) {
-        // reshem_bet / custom — show if the slot was added at all
-        return adHoc.some((s) => row.types.includes(s.type));
-      }
-      // regular slots — show only if someone is assigned
-      const all = [...slots, ...adHoc];
-      return all.some((s) => row.types.includes(s.type) && (s.employee || s.manualEmployee));
+      const slots = slotsForRowDay(row, dayKey);
+      return isAdHocRow(row) ? slots.length > 0 : slots.some(slotHasContent);
     })
   );
 
+  if (activeRows.length === 0) {
+    return <div className="text-center text-gray-400 py-10">אין משמרות לשבוע זה</div>;
+  }
+
+  const cellBorder = `1px solid ${C.border}`;
+
+  const renderSlot = (slot) => {
+    const names = [
+      slot.employee ? findName(slot.employee) : '',
+      slot.employee2 ? findName(slot.employee2) : '',
+      slot.manualEmployee ?? '',
+    ].filter(Boolean);
+
+    const deviation = formatDeviation(slot.time, defaultTimeFor(slot.type, shiftTimes));
+    const customLabel = slot.type === 'custom' ? slot.label : null;
+
+    return (
+      <div key={slot.id} className="py-0.5">
+        {customLabel && (
+          <div style={{ color: C.muted }} className="text-[11px] font-semibold leading-tight mb-0.5">
+            {customLabel}
+          </div>
+        )}
+
+        {names.length > 0 ? (
+          names.map((n, i) => (
+            <div
+              key={i}
+              style={{ color: C.name }}
+              className="font-bold text-[15px] leading-tight"
+            >
+              {n}
+              {i === 0 && slot.konenutMark && (
+                <span style={{ color: C.muted }} className="text-[10px] font-semibold mr-1">(כ)</span>
+              )}
+              {i === 0 && slot.reshemBetMark && (
+                <span style={{ color: C.muted }} className="text-[10px] font-semibold mr-1">(ב׳)</span>
+              )}
+            </div>
+          ))
+        ) : (
+          <span style={{ color: C.muted }}>—</span>
+        )}
+
+        {deviation && (
+          <div
+            style={{ color: C.deviation, backgroundColor: C.deviationBg, direction: 'ltr' }}
+            className="mt-1 inline-block rounded px-1.5 py-0.5 text-[15px] font-extrabold leading-tight"
+          >
+            {deviation}
+          </div>
+        )}
+
+        {slot.note && (
+          <div style={{ color: C.muted }} className="text-[11px] font-medium leading-tight mt-0.5 break-words">
+            {slot.note}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-center" style={{ fontSize: '11px' }}>
-        <thead>
-          <tr className="bg-[#1a2e4a] text-white">
-            <th className="py-2 px-1 font-semibold text-[10px] w-12 text-right pr-2">משמרת</th>
-            {DAY_KEYS.map((d, i) => (
-              <th key={d} className="py-2 px-0.5 font-bold border-r border-[#2a3e5a] last:border-r-0">{DAY_SHORT[i]}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {activeRows.map((row, ri) => (
-            <tr key={row.key} className={`border-b border-gray-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-              <td className="py-1.5 px-1 text-right pr-2 font-semibold text-gray-400 text-[10px] border-r border-gray-200 align-top pt-2">
-                {row.label}
-              </td>
+    <table
+      className="w-full border-collapse text-center"
+      style={{ tableLayout: 'fixed' }}
+    >
+      <thead>
+        <tr>
+          <th
+            style={{
+              backgroundColor: C.headerBg,
+              color: C.headerText,
+              border: cellBorder,
+              width: '15%',
+            }}
+            className="py-2.5 px-2 text-[13px] font-bold"
+          >
+            משמרת
+          </th>
+          {DAY_KEYS.map((d, i) => (
+            <th
+              key={d}
+              style={{ backgroundColor: C.headerBg, color: C.headerText, border: cellBorder }}
+              className="py-2.5 px-1 text-[14px] font-bold"
+            >
+              {DAYS[i]}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {activeRows.map((row, ri) => {
+          const hours = row.timeType ? defaultTimeFor(row.timeType, shiftTimes) : '';
+          const rowBg = ri % 2 === 0 ? C.rowOdd : C.rowEven;
+          return (
+            <tr key={row.key}>
+              {/* Right-hand shift column: name + standard hours */}
+              <th
+                scope="row"
+                style={{ backgroundColor: C.headerBg, color: C.headerText, border: cellBorder }}
+                className="py-2 px-2 align-middle"
+              >
+                <div className="text-[14px] font-bold leading-tight">{row.label}</div>
+                {hours && (
+                  <div
+                    style={{ color: C.shiftHours, direction: 'ltr' }}
+                    className="text-[11px] font-mono mt-0.5"
+                  >
+                    {hours}
+                  </div>
+                )}
+              </th>
+
               {DAY_KEYS.map((dayKey) => {
-                const all = [...(schedule?.[dayKey]?.slots ?? []), ...(schedule?.[dayKey]?.adHocShifts ?? [])];
-                const slot = all.find((s) => row.types.includes(s.type));
-                if (!slot) return <td key={dayKey} className="py-1.5 px-0.5 text-gray-200 border-r border-gray-100 last:border-r-0">—</td>;
-
-                const names = [
-                  slot.employee       ? findName(slot.employee)  : '',
-                  slot.employee2      ? findName(slot.employee2) : '',
-                  slot.manualEmployee ?? '',
-                ].filter(Boolean);
-
-                const shiftDef = SHIFT_TYPES[slot.type] ?? SHIFT_TYPES.custom;
-                const time = slot.time || shiftTimes?.[slot.type] || shiftDef.time || '';
-
+                const slots = slotsForRowDay(row, dayKey).filter(
+                  (s) => isAdHocRow(row) || slotHasContent(s)
+                );
                 return (
-                  <td key={dayKey} className="py-1.5 px-0.5 align-top border-r border-gray-100 last:border-r-0">
-                    {/* Custom shift label */}
-                    {slot.type === 'custom' && slot.label && (
-                      <div className="text-[9px] font-semibold text-purple-700 leading-tight mb-0.5">{slot.label}</div>
-                    )}
-                    {/* Employee names */}
-                    {names.length > 0 ? (
-                      <div className="font-bold text-[#1a2e4a] leading-snug">
-                        {names.map((n, i) => <div key={i}>{n}</div>)}
-                      </div>
-                    ) : (
-                      <span className="text-gray-200">—</span>
-                    )}
-                    {/* Time */}
-                    {time && (
-                      <div className="text-[9px] text-gray-400 font-mono mt-0.5" style={{ direction: 'ltr' }}>
-                        {time}
-                      </div>
-                    )}
-                    {/* Badges */}
-                    <div className="flex justify-center gap-0.5 mt-0.5 flex-wrap">
-                      {slot.reshemBetMark && (
-                        <span className="text-[8px] bg-sky-100 text-sky-700 rounded px-0.5 font-bold">ב׳</span>
-                      )}
-                      {slot.konenutMark && (
-                        <span className="text-[8px] bg-pink-100 text-pink-700 rounded px-0.5 font-bold">כ</span>
-                      )}
-                    </div>
-                    {/* Note */}
-                    {slot.note && (
-                      <div className="text-[9px] text-gray-700 font-medium mt-0.5 leading-tight line-clamp-2 bg-yellow-50 rounded px-0.5">
-                        {slot.note}
-                      </div>
-                    )}
+                  <td
+                    key={dayKey}
+                    style={{ backgroundColor: rowBg, border: cellBorder }}
+                    className="py-1.5 px-1 align-top"
+                  >
+                    {slots.length > 0
+                      ? slots.map(renderSlot)
+                      : <span style={{ color: C.muted }} className="text-[13px]">—</span>}
                   </td>
                 );
               })}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {/* Legend */}
-      <div className="flex gap-3 justify-center mt-2 text-[10px] text-gray-500">
-        <span className="flex items-center gap-1">
-          <span className="bg-sky-100 text-sky-700 rounded px-1 font-bold text-[9px]">ב׳</span>
-          גיבוי רשת ב׳
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="bg-pink-100 text-pink-700 rounded px-1 font-bold text-[9px]">כ</span>
-          כוננות
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ── Read-only slot card ──────────────────────────────────────────────────────
-
-function ViewSlot({ slot, employees }) {
-  const shiftDef = SHIFT_TYPES[slot.type] ?? SHIFT_TYPES.custom;
-  const label    = slot.label ?? shiftDef.label;
-  const time     = slot.time  ?? shiftDef.time ?? '';
-
-  const findName = (id) => employees.find((e) => e.id === id)?.name ?? id;
-
-  const emp1Name = slot.employee  ? findName(slot.employee)  : null;
-  const emp2Name = slot.employee2 ? findName(slot.employee2) : null;
-  const manual   = slot.manualEmployee ?? null;
-
-  // Status-based style overrides
-  let containerClass = `${shiftDef.color} ${shiftDef.textColor}`;
-  if (slot.status === 'forced') {
-    containerClass = 'bg-red-200 border-red-400 text-red-800';
-  } else if (slot.status === 'low') {
-    containerClass = 'bg-gray-200 border-gray-400 border-dashed text-gray-600';
-  }
-
-  const isEmpty = !emp1Name && !emp2Name && !manual;
-
-  return (
-    <div className={`rounded-xl border p-2 text-xs flex-1 ${containerClass}`}>
-      {/* Label + time */}
-      <div className="font-bold leading-tight">{label}</div>
-      {time && (
-        <div className="font-mono text-sm font-semibold opacity-80 leading-tight mt-0.5" style={{ direction: 'ltr' }}>
-          {time}
-        </div>
-      )}
-
-      {/* Reshet bet badge */}
-      {slot.reshemBetMark && (
-        <div className="mt-1 text-[8px] bg-sky-100 text-sky-700 border border-sky-300
-          rounded-lg px-1.5 py-0.5 font-medium text-center leading-tight">
-          גיבוי רשת ב׳
-        </div>
-      )}
-
-      {/* Konenut badge */}
-      {slot.konenutMark && (
-        <div className="mt-1 text-[8px] bg-pink-100 text-pink-700 border border-pink-300
-          rounded-lg px-1.5 py-0.5 font-medium text-center leading-tight">
-          כוננות
-        </div>
-      )}
-
-      {/* Employee chips */}
-      {emp1Name && (
-        <div className="mt-1.5 rounded-md px-1 py-0.5 border border-orange-300 bg-orange-50
-          text-center text-[18px] font-bold leading-tight text-orange-800 truncate">
-          {emp1Name}
-        </div>
-      )}
-      {emp2Name && (
-        <div className="mt-1 rounded-md px-1 py-0.5 border border-orange-300 bg-orange-50
-          text-center text-[18px] font-bold leading-tight text-orange-800 truncate">
-          {emp2Name}
-        </div>
-      )}
-      {manual && (
-        <div className="mt-1.5 rounded-md px-1 py-0.5 border border-orange-300 bg-orange-50
-          text-center text-[18px] font-bold leading-tight text-orange-800 truncate">
-          {manual}
-        </div>
-      )}
-
-      {/* Empty placeholder */}
-      {isEmpty && (
-        <div className="mt-1.5 h-6 rounded-md border border-current/20 border-dashed
-          flex items-center justify-center opacity-30 text-[9px] select-none">
-          —
-        </div>
-      )}
-
-      {/* Slot note */}
-      {slot.note && (
-        <div className="mt-1.5 rounded-lg bg-black/10 px-2 py-1.5
-          text-sm font-semibold leading-snug break-words">
-          {slot.note}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Read-only day column ─────────────────────────────────────────────────────
-
-const SLOT_POS = {
-  morning: 'morning', short_morning: 'morning', weekend_morning: 'morning',
-  middle: 'middle', weekend_middle: 'middle',
-  evening: 'evening', samples: 'evening', weekend_evening: 'evening',
-};
-
-const ADHOC_POS = {
-  morning: 'morning', short_morning: 'morning',
-  middle: 'middle', weekend_middle: 'middle',
-  evening: 'evening', samples: 'evening',
-};
-
-function ViewDayColumn({ dayKey, dayName, dayData, employees }) {
-  const slots = dayData?.slots      ?? [];
-  const adHoc = dayData?.adHocShifts ?? [];
-
-  const reshemSlot        = adHoc.find((s) => s.type === 'reshem_bet')     ?? null;
-  const weekendMiddleSlot = adHoc.find((s) => s.type === 'weekend_middle') ?? null;
-  const trueAdHoc         = adHoc.filter((s) => s.type !== 'reshem_bet' && s.type !== 'weekend_middle');
-
-  const groups = { morning: [], middle: [], evening: [], end: [] };
-  trueAdHoc.forEach((s) => {
-    const pos = ADHOC_POS[s.boundType] ?? 'end';
-    groups[pos].push(s);
-  });
-
-  const renderAdHocs = (bucket) =>
-    groups[bucket].map((slot) => (
-      <ViewSlot key={slot.id} slot={slot} employees={employees} />
-    ));
-
-  const renderSlots = () => {
-    const result = [];
-    slots.forEach((slot) => {
-      result.push(
-        <div key={slot.id} className="flex-1 flex flex-col gap-1.5">
-          <ViewSlot slot={slot} employees={employees} />
-          {renderAdHocs(SLOT_POS[slot.type] ?? 'end')}
-        </div>
-      );
-      if (slot.type === 'weekend_morning' && weekendMiddleSlot) {
-        result.push(
-          <div key={weekendMiddleSlot.id} className="flex-1 flex flex-col gap-1.5">
-            <ViewSlot slot={weekendMiddleSlot} employees={employees} />
-            {renderAdHocs('middle')}
-          </div>
-        );
-      }
-    });
-    return result;
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5 rounded-xl border p-2.5 bg-white border-gray-200">
-      <div className="text-xs font-bold text-[#1a2e4a] pb-0.5 border-b border-gray-100">
-        {dayName}
-      </div>
-      {reshemSlot && <ViewSlot slot={reshemSlot} employees={employees} />}
-      <div className="flex-1 flex flex-col gap-1.5">
-        {renderSlots()}
-        {renderAdHocs('end')}
-      </div>
-    </div>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -339,7 +286,7 @@ export function ScheduleViewPage() {
       {/* Notes — prominently above the grid */}
       {scheduleNotes && (
         <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-3 shrink-0">
-          <div className="max-w-[1100px] mx-auto">
+          <div className="max-w-[760px] mx-auto">
             <div className="text-xs font-bold text-yellow-700 uppercase tracking-wide mb-1.5">📌 הערות</div>
             <div
               className="text-base text-gray-800 leading-relaxed"
@@ -349,23 +296,10 @@ export function ScheduleViewPage() {
         </div>
       )}
 
-      {/* Mobile: classic table */}
-      <div className="lg:hidden p-2">
-        <MobileTable schedule={schedule} employees={employees} shiftTimes={shiftTimes} />
-      </div>
-
-      {/* Desktop: card grid */}
-      <div className="hidden lg:block flex-1 p-3">
-        <div className="grid grid-cols-7 gap-2 mx-auto max-w-[1100px]">
-          {DAY_KEYS.map((dayKey, i) => (
-            <ViewDayColumn
-              key={dayKey}
-              dayKey={dayKey}
-              dayName={DAYS[i]}
-              dayData={schedule?.[dayKey]}
-              employees={employees}
-            />
-          ))}
+      {/* Schedule — single square table for all screen sizes */}
+      <div className="flex-1 p-3">
+        <div className="mx-auto max-w-[760px] overflow-x-auto">
+          <ScheduleTable schedule={schedule} employees={employees} shiftTimes={shiftTimes} />
         </div>
       </div>
 
