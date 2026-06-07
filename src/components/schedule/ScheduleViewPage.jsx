@@ -23,13 +23,13 @@ const C = {
 // share the same logical slot. `timeType` is the type whose hours represent the
 // row's standard hours (shown in the right-hand shift column).
 const ROW_DEFS = [
-  { key: 'reshem',  types: ['reshem_bet'],                  label: 'רשת ב׳',  timeType: null },
-  { key: 'morning', types: ['morning', 'weekend_morning'], label: 'בוקר',    timeType: 'morning' },
-  { key: 'short',   types: ['short_morning'],               label: 'בוקר קצר', timeType: 'short_morning' },
-  { key: 'middle',  types: ['middle', 'weekend_middle'],    label: 'אמצע',    timeType: 'middle' },
-  { key: 'evening', types: ['evening', 'weekend_evening'],  label: 'ערב',     timeType: 'evening' },
-  { key: 'samples', types: ['samples'],                     label: 'דגימות',  timeType: 'samples' },
-  { key: 'custom',  types: ['custom'],                      label: 'בלת״ם',   timeType: null },
+  { key: 'reshem',  types: ['reshem_bet'],                             label: 'רשת ב׳',  timeType: null },
+  { key: 'morning', types: ['morning', 'weekend_morning'],            label: 'בוקר',    timeType: 'morning' },
+  { key: 'short',   types: ['short_morning'],                          label: 'בוקר קצר', timeType: 'short_morning' },
+  { key: 'middle',  types: ['middle', 'weekend_middle'],              label: 'אמצע',    timeType: 'middle' },
+  // 'samples' is folded into the evening row — it's flagged inside the cell.
+  { key: 'evening', types: ['evening', 'weekend_evening', 'samples'], label: 'ערב',     timeType: 'evening' },
+  { key: 'custom',  types: ['custom'],                                 label: 'בלת״ם',   timeType: null },
 ];
 
 const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
@@ -71,25 +71,39 @@ function formatDeviation(slotTime, defaultTime) {
 function ScheduleTable({ schedule, employees, shiftTimes }) {
   const findName = (id) => employees.find((e) => e.id === id)?.name ?? '';
 
-  const slotsForRowDay = (row, dayKey) => {
-    const all = [
-      ...(schedule?.[dayKey]?.slots ?? []),
-      ...(schedule?.[dayKey]?.adHocShifts ?? []),
-    ];
-    return all.filter((s) => row.types.includes(s.type));
-  };
+  const allSlotsForDay = (dayKey) => [
+    ...(schedule?.[dayKey]?.slots ?? []),
+    ...(schedule?.[dayKey]?.adHocShifts ?? []),
+  ];
+
+  const slotsForRowDay = (row, dayKey) =>
+    allSlotsForDay(dayKey).filter((s) => row.types.includes(s.type));
 
   const slotHasContent = (s) =>
     Boolean(s.employee || s.employee2 || s.manualEmployee);
 
+  // The רשת ב׳ row gathers everyone covering reshet-bet that day: both dedicated
+  // reshem_bet slots and the editors on regular slots flagged as backup.
+  const reshemNamesForDay = (dayKey) => {
+    const names = [];
+    allSlotsForDay(dayKey).forEach((s) => {
+      if (s.type !== 'reshem_bet' && !s.reshemBetMark) return;
+      if (s.employee)       names.push(findName(s.employee));
+      if (s.employee2)      names.push(findName(s.employee2));
+      if (s.manualEmployee) names.push(s.manualEmployee);
+    });
+    return [...new Set(names.filter(Boolean))];
+  };
+
+  const isReshemRow = (row) => row.key === 'reshem';
+  const isAdHocRow  = (row) => row.types.every((t) => ADHOC_ONLY.has(t));
+
   // A row is shown when at least one day has something to display in it.
-  const isAdHocRow = (row) => row.types.every((t) => ADHOC_ONLY.has(t));
-  const activeRows = ROW_DEFS.filter((row) =>
-    DAY_KEYS.some((dayKey) => {
-      const slots = slotsForRowDay(row, dayKey);
-      return isAdHocRow(row) ? slots.length > 0 : slots.some(slotHasContent);
-    })
-  );
+  const activeRows = ROW_DEFS.filter((row) => {
+    if (isReshemRow(row)) return DAY_KEYS.some((d) => reshemNamesForDay(d).length > 0);
+    if (isAdHocRow(row))  return DAY_KEYS.some((d) => slotsForRowDay(row, d).length > 0);
+    return DAY_KEYS.some((d) => slotsForRowDay(row, d).some(slotHasContent));
+  });
 
   if (activeRows.length === 0) {
     return <div className="text-center text-gray-400 py-10">אין משמרות לשבוע זה</div>;
@@ -107,6 +121,13 @@ function ScheduleTable({ schedule, employees, shiftTimes }) {
     const deviation = formatDeviation(slot.time, defaultTimeFor(slot.type, shiftTimes));
     const customLabel = slot.type === 'custom' ? slot.label : null;
 
+    // Prominent in-cell tags (shown where the hours would be), kept in the
+    // uniform navy palette. Reshet-bet backup is no longer marked here — it has
+    // its own row.
+    const tags = [];
+    if (slot.type === 'samples') tags.push('דגימות');
+    if (slot.konenutMark)        tags.push('כוננות');
+
     return (
       <div key={slot.id} className="py-0.5">
         {customLabel && (
@@ -123,17 +144,21 @@ function ScheduleTable({ schedule, employees, shiftTimes }) {
               className="font-bold text-[15px] leading-tight"
             >
               {n}
-              {i === 0 && slot.konenutMark && (
-                <span style={{ color: C.muted }} className="text-[10px] font-semibold mr-1">(כ)</span>
-              )}
-              {i === 0 && slot.reshemBetMark && (
-                <span style={{ color: C.muted }} className="text-[10px] font-semibold mr-1">(ב׳)</span>
-              )}
             </div>
           ))
         ) : (
           <span style={{ color: C.muted }}>—</span>
         )}
+
+        {tags.map((t) => (
+          <div
+            key={t}
+            style={{ backgroundColor: C.headerBg, color: C.headerText }}
+            className="mt-1 inline-block rounded px-1.5 py-0.5 text-[13px] font-bold leading-tight"
+          >
+            {t}
+          </div>
+        ))}
 
         {deviation && (
           <div
@@ -206,6 +231,25 @@ function ScheduleTable({ schedule, employees, shiftTimes }) {
               </th>
 
               {DAY_KEYS.map((dayKey) => {
+                if (isReshemRow(row)) {
+                  const names = reshemNamesForDay(dayKey);
+                  return (
+                    <td
+                      key={dayKey}
+                      style={{ backgroundColor: rowBg, border: cellBorder }}
+                      className="py-1.5 px-1 align-top"
+                    >
+                      {names.length > 0
+                        ? names.map((n, i) => (
+                            <div key={i} style={{ color: C.name }} className="font-bold text-[15px] leading-tight">
+                              {n}
+                            </div>
+                          ))
+                        : <span style={{ color: C.muted }} className="text-[13px]">—</span>}
+                    </td>
+                  );
+                }
+
                 const slots = slotsForRowDay(row, dayKey).filter(
                   (s) => isAdHocRow(row) || slotHasContent(s)
                 );
