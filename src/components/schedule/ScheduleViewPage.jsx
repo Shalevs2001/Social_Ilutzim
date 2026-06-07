@@ -24,7 +24,7 @@ function SquareExport({ data }) {
         alt="סידור משמרות"
         className="w-full rounded-xl shadow-md"
       />
-      <div className="text-center text-base text-gray-400 mt-3">
+      <div className="text-center text-sm text-gray-400 mt-2">
         תמונה ריבועית {SQUARE_SIZE}×{SQUARE_SIZE} — לחיצה ימנית / לחיצה ארוכה על התמונה כדי לשמור
       </div>
     </div>
@@ -75,23 +75,23 @@ export function ScheduleViewPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col" dir="rtl">
 
       {/* Header */}
-      <div className="bg-[#1a2e4a] text-white px-4 py-6 shrink-0 text-center">
-        <div className="text-5xl font-bold tracking-tight">סידור משמרות</div>
+      <div className="bg-[#1a2e4a] text-white px-4 py-5 shrink-0 text-center">
+        <div className="text-3xl font-bold tracking-tight">סידור משמרות</div>
         {scheduleDate && (
-          <div className="text-white/75 text-3xl mt-2 font-medium">{scheduleDate}</div>
+          <div className="text-white/75 text-xl mt-1.5 font-medium">{scheduleDate}</div>
         )}
         {savedDate && (
-          <div className="text-white/35 text-base mt-2">עודכן {savedDate}</div>
+          <div className="text-white/35 text-sm mt-1.5">עודכן {savedDate}</div>
         )}
       </div>
 
       {/* Notes — prominently above the image */}
       {scheduleNotes && (
-        <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-4 shrink-0">
+        <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-3 shrink-0">
           <div className="max-w-[760px] mx-auto">
-            <div className="text-base font-bold text-yellow-700 uppercase tracking-wide mb-2">📌 הערות</div>
+            <div className="text-sm font-bold text-yellow-700 uppercase tracking-wide mb-1.5">📌 הערות</div>
             <div
-              className="text-3xl text-gray-800 leading-relaxed"
+              className="text-xl text-gray-800 leading-relaxed"
               dangerouslySetInnerHTML={{ __html: scheduleNotes }}
             />
           </div>

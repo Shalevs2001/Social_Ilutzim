@@ -12,9 +12,9 @@
 import { DAYS, DAY_KEYS } from '../constants';
 import { buildScheduleView } from './scheduleViewModel';
 
-// Global multiplier for every text size. Bumped so the schedule stays readable
-// when shrunk to a small profile picture.
-const FONT_SCALE = 2;
+// Global multiplier for every text size, tuned for readability when the image
+// is shrunk to a small profile picture.
+const FONT_SCALE = 4 / 3;
 
 const C = {
   headerBg:    '#1a2e4a',
@@ -157,22 +157,21 @@ export function exportScheduleSquareCanvas(data, size = 2160) {
     ctx.fillStyle = C.headerText;
     ctx.textAlign = 'center';
     ctx.direction = 'rtl';
-    ctx.textBaseline = 'middle';
     const cx = shiftColX + shiftColW / 2;
     const shiftInnerW = shiftColW - Math.round(size * 0.025);
+    // Label anchored at the cell centre (aligned with the day-cell names); hours
+    // flow below without shifting it.
+    const lf = fitFont(ctx, row.label, labelFont, shiftInnerW, 'bold', 'Arial');
+    ctx.font = F(`bold ${lf}px Arial`);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(row.label, cx, y + rowH / 2);
     if (row.hours) {
-      const lf = fitFont(ctx, row.label, labelFont, shiftInnerW, 'bold', 'Arial');
-      ctx.font = F(`bold ${lf}px Arial`);
-      ctx.fillText(row.label, cx, y + rowH / 2 - hoursFont * 0.85);
       const hf = fitFont(ctx, row.hours, hoursFont, shiftInnerW, 'normal', '"Courier New", monospace');
       ctx.font = F(`${hf}px "Courier New", monospace`);
       ctx.fillStyle = C.shiftHours;
       ctx.direction = 'ltr';
-      ctx.fillText(row.hours, cx, y + rowH / 2 + labelFont * 0.8);
-    } else {
-      const lf = fitFont(ctx, row.label, labelFont, shiftInnerW, 'bold', 'Arial');
-      ctx.font = F(`bold ${lf}px Arial`);
-      ctx.fillText(row.label, cx, y + rowH / 2);
+      ctx.textBaseline = 'top';
+      ctx.fillText(row.hours, cx, y + rowH / 2 + lf * 0.7);
     }
     ctx.textBaseline = 'alphabetic';
 
@@ -214,9 +213,11 @@ export function exportScheduleSquareCanvas(data, size = 2160) {
         if (ln.kind === 'label') return labelH;
         return chipH + chipGapY;
       });
-      const blockH = measured.reduce((s, h) => s + h, 0);
 
-      let ly = y + Math.max(rowH * 0.06, (rowH - blockH) / 2);
+      // Anchor the first (primary) line at the cell's vertical centre, so it sits
+      // at a uniform height across every cell. Any extra lines (second name,
+      // tags, deviation) flow below without shifting the primary line.
+      let ly = y + rowH / 2 - measured[0] / 2;
       const ccx = x + dayColW / 2;
       ctx.textBaseline = 'top';
 
