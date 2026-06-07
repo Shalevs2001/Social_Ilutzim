@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase';
 import { DAYS, DAY_KEYS } from '../../constants';
 import { buildScheduleView } from '../../utils/scheduleViewModel';
-import { exportScheduleSquareCanvas, downloadScheduleSquare } from '../../utils/exportScheduleSquare';
+import { exportScheduleSquareCanvas } from '../../utils/exportScheduleSquare';
 
 // ── Fixed, lean palette ───────────────────────────────────────────────────────
 // Deliberately independent of the app's per-shift / per-status colors. Just a
@@ -135,32 +135,24 @@ function ScheduleTable({ rows }) {
 // ── Square image preview + download ───────────────────────────────────────────
 
 function SquareExport({ data }) {
-  const wrapRef = useRef(null);
+  const [src, setSrc] = useState(null);
 
   useEffect(() => {
-    if (!wrapRef.current) return;
     const canvas = exportScheduleSquareCanvas(data, 1080);
-    canvas.style.width  = '100%';
-    canvas.style.height = 'auto';
-    canvas.style.display = 'block';
-    canvas.style.borderRadius = '12px';
-    wrapRef.current.replaceChildren(canvas);
+    setSrc(canvas.toDataURL('image/png'));
   }, [data]);
+
+  if (!src) return null;
 
   return (
     <div className="max-w-[420px] mx-auto">
-      <div
-        ref={wrapRef}
-        className="rounded-xl overflow-hidden shadow-md border border-gray-200 bg-white"
+      <img
+        src={src}
+        alt="סידור משמרות"
+        className="w-full rounded-xl shadow-md border border-gray-200 bg-white"
       />
-      <button
-        onClick={() => downloadScheduleSquare(data, 1080)}
-        className="mt-3 w-full bg-[#1a2e4a] hover:bg-[#24395c] text-white font-bold rounded-xl py-3 transition-colors"
-      >
-        📷 הורד תמונה מרובעת (לקבוצת וואטסאפ)
-      </button>
       <div className="text-center text-xs text-gray-400 mt-1.5">
-        תמונה ריבועית 1080×1080 — מתאימה לתמונת פרופיל של קבוצה
+        תמונה ריבועית 1080×1080 — לחיצה ימנית / לחיצה ארוכה על התמונה כדי לשמור
       </div>
     </div>
   );

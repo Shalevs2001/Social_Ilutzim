@@ -18,6 +18,11 @@ export const VIEW_ROW_DEFS = [
 
 const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
 
+// Rows that make up the fixed skeleton — always shown (with their hours in the
+// right-hand column) even when the week has no shifts yet. 'custom' is shown
+// only when there's actually an ad-hoc shift.
+const ALWAYS_SHOW = new Set(['reshem', 'morning', 'middle', 'evening']);
+
 /** Default (standard) hours for a shift type, from settings or the constant. */
 export function defaultTimeFor(type, shiftTimes) {
   return shiftTimes?.[type] || SHIFT_TYPES[type]?.time || '';
@@ -116,5 +121,5 @@ export function buildScheduleView({ schedule, employees = [], shiftTimes = {} })
       hours: row.timeType ? defaultTimeFor(row.timeType, shiftTimes) : '',
       days: DAY_KEYS.map((dayKey) => entriesFor(row, dayKey)),
     }))
-    .filter((row) => row.days.some((entries) => entries.length > 0));
+    .filter((row) => ALWAYS_SHOW.has(row.key) || row.days.some((entries) => entries.length > 0));
 }
