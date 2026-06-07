@@ -150,11 +150,11 @@ export function DndProvider({ children }) {
       const lookupType = (slotType === 'custom' && targetSlot.boundType) ? targetSlot.boundType : slotType;
 
       if (lookupType === 'reshem_bet') {
-        const morAv   = availability[empId]?.[dayKey]?.morning       ?? null;
-        const shortAv = availability[empId]?.[dayKey]?.short_morning ?? null;
-        if (morAv === AVAIL.regular || shortAv === AVAIL.regular) effectiveAv = AVAIL.regular;
-        else if (morAv === AVAIL.low || shortAv === AVAIL.low)    effectiveAv = AVAIL.low;
-        else                                                        effectiveAv = null;
+        const dayAvail  = availability[empId]?.[dayKey] ?? {};
+        const morFamily = [dayAvail.morning, dayAvail.short_morning, dayAvail.weekend_morning];
+        if (morFamily.includes(AVAIL.regular))      effectiveAv = AVAIL.regular;
+        else if (morFamily.includes(AVAIL.low))     effectiveAv = AVAIL.low;
+        else                                        effectiveAv = null;
       } else {
         const availVal    = availability[empId]?.[dayKey]?.[lookupType] ?? null;
         const altType     = SLOT_ALTERNATIVES[lookupType];
