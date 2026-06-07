@@ -7,13 +7,13 @@ import { SHIFT_TYPES, DAY_KEYS } from '../constants';
 // share the same logical slot. `timeType` is the type whose hours represent the
 // row's standard hours (shown in the right-hand shift column).
 export const VIEW_ROW_DEFS = [
-  { key: 'reshem',  types: ['reshem_bet'],                             label: 'רשת ב׳',   timeType: null },
-  { key: 'morning', types: ['morning', 'weekend_morning'],            label: 'בוקר',     timeType: 'morning' },
-  { key: 'short',   types: ['short_morning'],                          label: 'בוקר קצר', timeType: 'short_morning' },
-  { key: 'middle',  types: ['middle', 'weekend_middle'],              label: 'אמצע',     timeType: 'middle' },
+  { key: 'reshem',  types: ['reshem_bet'],                                  label: 'רשת ב׳', timeType: null },
+  // 'short_morning' is folded into the morning row — shown as a "עד 13:00" change.
+  { key: 'morning', types: ['morning', 'weekend_morning', 'short_morning'], label: 'בוקר',   timeType: 'morning' },
+  { key: 'middle',  types: ['middle', 'weekend_middle'],                   label: 'אמצע',   timeType: 'middle' },
   // 'samples' is folded into the evening row — it's flagged inside the cell.
-  { key: 'evening', types: ['evening', 'weekend_evening', 'samples'], label: 'ערב',      timeType: 'evening' },
-  { key: 'custom',  types: ['custom'],                                 label: 'בלת״ם',    timeType: null },
+  { key: 'evening', types: ['evening', 'weekend_evening', 'samples'],      label: 'ערב',    timeType: 'evening' },
+  { key: 'custom',  types: ['custom'],                                      label: 'בלת״ם',  timeType: null },
 ];
 
 const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
@@ -96,10 +96,14 @@ export function buildScheduleView({ schedule, employees = [], shiftTimes = {} })
         const tags = [];
         if (s.type === 'samples') tags.push('דגימות');
         if (s.konenutMark)        tags.push('כוננות');
+        // A short morning is a regular morning that ends early — compare its hours
+        // against the morning standard so it reads as "עד 13:00".
+        const refType   = s.type === 'short_morning' ? 'morning' : s.type;
+        const effective = s.time || defaultTimeFor(s.type, shiftTimes);
         return {
           names: namesOf(s),
           tags,
-          deviation: formatDeviation(s.time, defaultTimeFor(s.type, shiftTimes)),
+          deviation: formatDeviation(effective, defaultTimeFor(refType, shiftTimes)),
           customLabel: s.type === 'custom' ? (s.label ?? null) : null,
         };
       });
