@@ -41,7 +41,7 @@ function roundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-export function exportScheduleSquareCanvas(data, size = 1080) {
+export function exportScheduleSquareCanvas(data, size = 2160) {
   const rows = buildScheduleView(data);
 
   const canvas = document.createElement('canvas');
@@ -49,7 +49,12 @@ export function exportScheduleSquareCanvas(data, size = 1080) {
   canvas.height = size;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = C.bg;
+  // Orange → red gradient base (brand look)
+  const bg = ctx.createLinearGradient(0, 0, size, size);
+  bg.addColorStop(0,    '#ff8a2b');
+  bg.addColorStop(0.55, '#f04e12');
+  bg.addColorStop(1,    '#cf1400');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, size, size);
 
   const PAD     = Math.round(size * 0.02);
@@ -233,7 +238,7 @@ export function exportScheduleSquareCanvas(data, size = 1080) {
 }
 
 /** Generate the square PNG and trigger a download. */
-export function downloadScheduleSquare(data, size = 1080) {
+export function downloadScheduleSquare(data, size = 2160) {
   const canvas = exportScheduleSquareCanvas(data, size);
   const safeDate = (data?.scheduleDate || 'schedule').replace(/[^\w֐-׿-]+/g, '_');
   canvas.toBlob((blob) => {
