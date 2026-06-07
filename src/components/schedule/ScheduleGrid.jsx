@@ -5,6 +5,7 @@ import { exportScheduleCanvas } from '../../utils/exportSchedule';
 import { DAYS, DAY_KEYS, WEEKEND_DAYS } from '../../constants';
 import { DayColumn } from './DayColumn';
 import { AdHocModal } from './AdHocModal';
+import { ArchivedSchedulesModal } from './ArchivedSchedulesModal';
 
 /**
  * Legend chip for shift-slot visual states.
@@ -120,11 +121,13 @@ function GridToolbar({ compact }) {
 export function ScheduleGrid({ compact = false }) {
   const [adHocTarget,   setAdHocTarget]   = useState(null);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [showArchive,   setShowArchive]   = useState(false);
 
   const editorRef        = useRef(null);
   const footerRef        = useRef(null);   // wraps both collapsed + expanded panel
 
-  const { schedule, employees, shiftTimes, scheduleDate, setScheduleDate, scheduleNotes, setScheduleNotes, toast } = useApp();
+  const { schedule, employees, shiftTimes, scheduleNotes, setScheduleNotes,
+          weekStart, setWeekStart, weekTitle, openNewSchedule, toast } = useApp();
 
   // ── Close helper (saves content) ──────────────────────────────────────────
   const closeNotes = useCallback(() => {
@@ -197,15 +200,36 @@ export function ScheduleGrid({ compact = false }) {
 
       {/* Date / title bar */}
       {!compact && (
-        <div className="bg-[#1a2e4a] text-white px-4 py-2 flex items-center gap-2 shrink-0" dir="rtl">
+        <div className="bg-[#1a2e4a] text-white px-4 py-2 flex items-center gap-3 shrink-0" dir="rtl">
           <span className="font-bold text-sm shrink-0">סידור</span>
-          <input
-            value={scheduleDate}
-            onChange={(e) => setScheduleDate(e.target.value)}
-            placeholder="תאריך / שבוע..."
-            className="flex-1 bg-transparent text-sm border-b border-white/30 focus:border-white/70
-              focus:outline-none placeholder-white/40 px-1 pb-0.5"
-          />
+          <span className="font-semibold text-sm shrink-0">{weekTitle || 'בחר תאריך תחילת שבוע'}</span>
+          <label className="flex items-center gap-1 text-xs text-white/70 shrink-0" title="תאריך יום ראשון של השבוע">
+            <span>שבוע מ־</span>
+            <input
+              type="date"
+              value={weekStart || ''}
+              onChange={(e) => setWeekStart(e.target.value)}
+              className="bg-white/10 text-white text-xs rounded px-1.5 py-0.5 border border-white/20
+                focus:border-white/60 focus:outline-none [color-scheme:dark]"
+            />
+          </label>
+
+          <div className="mr-auto flex items-center gap-2">
+            <button
+              onClick={() => setShowArchive(true)}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors"
+              title="צפייה בשיבוצים שנשמרו"
+            >
+              📁 שיבוצים קודמים
+            </button>
+            <button
+              onClick={openNewSchedule}
+              className="px-3 py-1.5 rounded-lg bg-[#38bcd4] hover:bg-[#2da6bd] text-[#0d1b2e] font-bold text-xs transition-colors"
+              title="שמור את השיבוץ הנוכחי ופתח שיבוץ חדש לשבוע הבא"
+            >
+              ＋ פתח שיבוץ חדש
+            </button>
+          </div>
         </div>
       )}
 
@@ -349,6 +373,9 @@ export function ScheduleGrid({ compact = false }) {
           onClose={() => setAdHocTarget(null)}
         />
       )}
+
+      {/* Archived schedules modal */}
+      {showArchive && <ArchivedSchedulesModal onClose={() => setShowArchive(false)} />}
     </div>
   );
 }

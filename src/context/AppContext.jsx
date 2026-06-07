@@ -12,6 +12,7 @@ import {
   AVAIL,
 } from '../constants';
 import { runAutoSchedule, DEFAULT_SHIFT_PRIORITY, shiftWeight } from '../utils/autoSchedule';
+import { getUpcomingSunday, addDaysISO, formatWeekTitle } from '../utils/weekDates';
 
 // Runs once at module load — before any hook reads localStorage.
 // If stored settings version doesn't match, wipe and replace with defaults.
@@ -115,6 +116,24 @@ export function AppProvider({ children, isAdmin = false }) {
   const [shiftPriority,  setShiftPriority] = useLocalStorage('ks_shift_priority', DEFAULT_SHIFT_PRIORITY);
   const [scheduleDate,    setScheduleDate]    = useLocalStorage('ks_schedule_date',    '');
   const [scheduleNotes,   setScheduleNotes]   = useLocalStorage('ks_schedule_notes',  '');
+  // Week start (Sunday, ISO YYYY-MM-DD). The schedule title is derived from this.
+  const [weekStart,       setWeekStart]       = useLocalStorage('ks_schedule_week_start', getUpcomingSunday);
+
+  // Schedule title = the week's date range (Sunday → Saturday). Kept in sync
+  // with scheduleDate so export / the /view page keep working unchanged.
+  const weekTitle = useMemo(() => formatWeekTitle(weekStart), [weekStart]);
+  useEffect(() => {
+    if (weekTitle && weekTitle !== scheduleDate) setScheduleDate(weekTitle);
+  }, [weekTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Archived schedules — saved to Firebase when a new week is opened.
+  const [archivedSchedules, _setArchivedSchedules] = useState([]);
+  useEffect(() => onValue(ref(db, 'archivedSchedules'), (s) => {
+    const data = s.val() ?? {};
+    const arr  = Object.entries(data).map(([id, a]) => ({ id, ...a }));
+    arr.sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0));
+    _setArchivedSchedules(arr);
+  }), []);
   const [scheduleVisible, setScheduleVisible] = useLocalStorage('ks_schedule_visible', false);
   // Employee notes — Firebase-backed for boss↔employee sync
   const [employeeNotes, _setEmployeeNotes] = useState({});
@@ -718,6 +737,35 @@ export function AppProvider({ children, isAdmin = false }) {
     });
   }, [confirm, setSchedule, toast]);
 
+  // Archive the current schedule and open a fresh one for the following week.
+  const openNewSchedule = useCallback(() => {
+    confirm('לפתוח שיבוץ חדש? השיבוץ הנוכחי יישמר בתיקיית השיבוצים הקודמים.', () => {
+      const now = Date.now();
+      // 1. Archive the current schedule
+      fbSet(ref(db, `archivedSchedules/${now}`), {
+        title:      weekTitle || scheduleDate || '',
+        weekStart:  weekStart ?? null,
+        schedule:   scheduleRef.current,
+        scheduleNotes: scheduleNotes ?? '',
+        employees:  employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
+        shiftTimes,
+        savedAt:    now,
+      }).catch(console.error);
+      // 2. Open a fresh schedule for next week (Sunday → Saturday)
+      setSchedule(makeEmptySchedule());
+      setWeekStart((prev) => addDaysISO(prev || getUpcomingSunday(), 7));
+      setScheduleNotes('');
+      toast('נפתח שיבוץ חדש · הקודם נשמר בארכיון', 'success');
+    });
+  }, [confirm, weekTitle, scheduleDate, weekStart, scheduleNotes, employees, shiftTimes, setSchedule, setWeekStart, setScheduleNotes, toast]);
+
+  const deleteArchivedSchedule = useCallback((id) => {
+    confirm('למחוק את השיבוץ השמור הזה?', () => {
+      remove(ref(db, `archivedSchedules/${id}`)).catch(console.error);
+      toast('השיבוץ נמחק מהארכיון', 'success');
+    });
+  }, [confirm, toast]);
+
   const markNotificationsRead = useCallback(() => {
     notifications.filter((n) => !n.read).forEach((n) => {
       fbSet(ref(db, `notifications/${n.id}/read`), true).catch(console.error);
@@ -902,6 +950,9 @@ export function AppProvider({ children, isAdmin = false }) {
     restoreAvailability,
     resetWeek,
     generalReset,
+    openNewSchedule,
+    deleteArchivedSchedule,
+    archivedSchedules,
     notifications,
     markNotificationsRead,
     dismissNotification,
@@ -909,6 +960,8 @@ export function AppProvider({ children, isAdmin = false }) {
     // Schedule metadata
     scheduleDate,    setScheduleDate,
     scheduleNotes,   setScheduleNotes,
+    weekStart,       setWeekStart,
+    weekTitle,
     scheduleVisible, setScheduleVisible,
 
     // Derived
