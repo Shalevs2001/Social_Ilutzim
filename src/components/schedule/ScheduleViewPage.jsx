@@ -1,197 +1,84 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase';
-import { SHIFT_TYPES, DAYS, DAY_KEYS } from '../../constants';
+import { DAYS, DAY_KEYS } from '../../constants';
+import { buildScheduleView } from '../../utils/scheduleViewModel';
+import { exportScheduleSquareCanvas, downloadScheduleSquare } from '../../utils/exportScheduleSquare';
 
 // ── Fixed, lean palette ───────────────────────────────────────────────────────
 // Deliberately independent of the app's per-shift / per-status colors. Just a
 // small set of neutral tones so the exported view stays clean and consistent.
 const C = {
-  headerBg:   '#1a2e4a',  // top header row + shift column
-  headerText: '#ffffff',
-  rowOdd:     '#ffffff',
-  rowEven:    '#f3f6fa',
-  border:     '#d7deea',
-  name:       '#1a2e4a',  // employee names
-  muted:      '#8a96a8',  // empty cells / secondary text
-  shiftHours: '#aebacc', // hours under the shift label (on dark bg)
-  deviation:  '#c2410c',  // changed hours — stands out
-  deviationBg:'#fff4ec',
+  headerBg:    '#1a2e4a',  // top header row + shift column
+  headerText:  '#ffffff',
+  rowOdd:      '#ffffff',
+  rowEven:     '#f3f6fa',
+  border:      '#d7deea',
+  name:        '#1a2e4a',  // employee names
+  muted:       '#8a96a8',  // empty cells / secondary text
+  shiftHours:  '#aebacc',  // hours under the shift label (on dark bg)
+  deviation:   '#c2410c',  // changed hours — stands out
+  deviationBg: '#fff4ec',
 };
 
-// Shift rows, top → bottom. Each row groups the weekday + weekend variants that
-// share the same logical slot. `timeType` is the type whose hours represent the
-// row's standard hours (shown in the right-hand shift column).
-const ROW_DEFS = [
-  { key: 'reshem',  types: ['reshem_bet'],                             label: 'רשת ב׳',  timeType: null },
-  { key: 'morning', types: ['morning', 'weekend_morning'],            label: 'בוקר',    timeType: 'morning' },
-  { key: 'short',   types: ['short_morning'],                          label: 'בוקר קצר', timeType: 'short_morning' },
-  { key: 'middle',  types: ['middle', 'weekend_middle'],              label: 'אמצע',    timeType: 'middle' },
-  // 'samples' is folded into the evening row — it's flagged inside the cell.
-  { key: 'evening', types: ['evening', 'weekend_evening', 'samples'], label: 'ערב',     timeType: 'evening' },
-  { key: 'custom',  types: ['custom'],                                 label: 'בלת״ם',   timeType: null },
-];
+// ── Entry (one slot's worth of content inside a cell) ──────────────────────────
 
-const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
+function CellEntry({ entry }) {
+  return (
+    <div className="py-0.5">
+      {entry.customLabel && (
+        <div style={{ color: C.muted }} className="text-[11px] font-semibold leading-tight mb-0.5">
+          {entry.customLabel}
+        </div>
+      )}
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+      {entry.names.length > 0 ? (
+        entry.names.map((n, i) => (
+          <div key={i} style={{ color: C.name }} className="font-bold text-[15px] leading-tight">
+            {n}
+          </div>
+        ))
+      ) : (
+        <span style={{ color: C.muted }}>—</span>
+      )}
 
-/** Default (standard) hours for a shift type, from settings or the constant. */
-function defaultTimeFor(type, shiftTimes) {
-  return shiftTimes?.[type] || SHIFT_TYPES[type]?.time || '';
-}
+      {entry.tags.map((t) => (
+        <div
+          key={t}
+          style={{ backgroundColor: C.headerBg, color: C.headerText }}
+          className="mt-1 inline-block rounded px-1.5 py-0.5 text-[13px] font-bold leading-tight"
+        >
+          {t}
+        </div>
+      ))}
 
-/**
- * Compare a slot's custom hours against the standard hours and describe only the
- * change in a short, human form:
- *   end moved earlier   → "עד 14:00"
- *   start moved later    → "מ-17:00"
- *   both changed / odd   → the full custom range
- * Returns null when there's no deviation.
- */
-function formatDeviation(slotTime, defaultTime) {
-  if (!slotTime) return null;
-  if (!defaultTime || slotTime === defaultTime) return null;
-
-  const sep = /\s*[–—-]\s*/;
-  const sp = slotTime.split(sep).map((s) => s.trim());
-  const dp = defaultTime.split(sep).map((s) => s.trim());
-
-  if (sp.length === 2 && dp.length === 2) {
-    const startDiff = sp[0] !== dp[0];
-    const endDiff   = sp[1] !== dp[1];
-    if (startDiff && !endDiff) return `מ-${sp[0]}`;
-    if (endDiff && !startDiff) return `עד ${sp[1]}`;
-  }
-  return slotTime;
+      {entry.deviation && (
+        <div
+          style={{ color: C.deviation, backgroundColor: C.deviationBg, direction: 'ltr' }}
+          className="mt-1 inline-block rounded px-1.5 py-0.5 text-[15px] font-extrabold leading-tight"
+        >
+          {entry.deviation}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Table ──────────────────────────────────────────────────────────────────────
 
-function ScheduleTable({ schedule, employees, shiftTimes }) {
-  const findName = (id) => employees.find((e) => e.id === id)?.name ?? '';
-
-  const allSlotsForDay = (dayKey) => [
-    ...(schedule?.[dayKey]?.slots ?? []),
-    ...(schedule?.[dayKey]?.adHocShifts ?? []),
-  ];
-
-  const slotsForRowDay = (row, dayKey) =>
-    allSlotsForDay(dayKey).filter((s) => row.types.includes(s.type));
-
-  const slotHasContent = (s) =>
-    Boolean(s.employee || s.employee2 || s.manualEmployee);
-
-  // The רשת ב׳ row gathers everyone covering reshet-bet that day: both dedicated
-  // reshem_bet slots and the editors on regular slots flagged as backup.
-  const reshemNamesForDay = (dayKey) => {
-    const names = [];
-    allSlotsForDay(dayKey).forEach((s) => {
-      if (s.type !== 'reshem_bet' && !s.reshemBetMark) return;
-      if (s.employee)       names.push(findName(s.employee));
-      if (s.employee2)      names.push(findName(s.employee2));
-      if (s.manualEmployee) names.push(s.manualEmployee);
-    });
-    return [...new Set(names.filter(Boolean))];
-  };
-
-  const isReshemRow = (row) => row.key === 'reshem';
-  const isAdHocRow  = (row) => row.types.every((t) => ADHOC_ONLY.has(t));
-
-  // A row is shown when at least one day has something to display in it.
-  const activeRows = ROW_DEFS.filter((row) => {
-    if (isReshemRow(row)) return DAY_KEYS.some((d) => reshemNamesForDay(d).length > 0);
-    if (isAdHocRow(row))  return DAY_KEYS.some((d) => slotsForRowDay(row, d).length > 0);
-    return DAY_KEYS.some((d) => slotsForRowDay(row, d).some(slotHasContent));
-  });
-
-  if (activeRows.length === 0) {
+function ScheduleTable({ rows }) {
+  if (rows.length === 0) {
     return <div className="text-center text-gray-400 py-10">אין משמרות לשבוע זה</div>;
   }
 
   const cellBorder = `1px solid ${C.border}`;
 
-  const renderSlot = (slot) => {
-    const names = [
-      slot.employee ? findName(slot.employee) : '',
-      slot.employee2 ? findName(slot.employee2) : '',
-      slot.manualEmployee ?? '',
-    ].filter(Boolean);
-
-    const deviation = formatDeviation(slot.time, defaultTimeFor(slot.type, shiftTimes));
-    const customLabel = slot.type === 'custom' ? slot.label : null;
-
-    // Prominent in-cell tags (shown where the hours would be), kept in the
-    // uniform navy palette. Reshet-bet backup is no longer marked here — it has
-    // its own row.
-    const tags = [];
-    if (slot.type === 'samples') tags.push('דגימות');
-    if (slot.konenutMark)        tags.push('כוננות');
-
-    return (
-      <div key={slot.id} className="py-0.5">
-        {customLabel && (
-          <div style={{ color: C.muted }} className="text-[11px] font-semibold leading-tight mb-0.5">
-            {customLabel}
-          </div>
-        )}
-
-        {names.length > 0 ? (
-          names.map((n, i) => (
-            <div
-              key={i}
-              style={{ color: C.name }}
-              className="font-bold text-[15px] leading-tight"
-            >
-              {n}
-            </div>
-          ))
-        ) : (
-          <span style={{ color: C.muted }}>—</span>
-        )}
-
-        {tags.map((t) => (
-          <div
-            key={t}
-            style={{ backgroundColor: C.headerBg, color: C.headerText }}
-            className="mt-1 inline-block rounded px-1.5 py-0.5 text-[13px] font-bold leading-tight"
-          >
-            {t}
-          </div>
-        ))}
-
-        {deviation && (
-          <div
-            style={{ color: C.deviation, backgroundColor: C.deviationBg, direction: 'ltr' }}
-            className="mt-1 inline-block rounded px-1.5 py-0.5 text-[15px] font-extrabold leading-tight"
-          >
-            {deviation}
-          </div>
-        )}
-
-        {slot.note && (
-          <div style={{ color: C.muted }} className="text-[11px] font-medium leading-tight mt-0.5 break-words">
-            {slot.note}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <table
-      className="w-full border-collapse text-center"
-      style={{ tableLayout: 'fixed' }}
-    >
+    <table className="w-full border-collapse text-center" style={{ tableLayout: 'fixed' }}>
       <thead>
         <tr>
           <th
-            style={{
-              backgroundColor: C.headerBg,
-              color: C.headerText,
-              border: cellBorder,
-              width: '15%',
-            }}
+            style={{ backgroundColor: C.headerBg, color: C.headerText, border: cellBorder, width: '15%' }}
             className="py-2.5 px-2 text-[13px] font-bold"
           >
             משמרת
@@ -208,8 +95,7 @@ function ScheduleTable({ schedule, employees, shiftTimes }) {
         </tr>
       </thead>
       <tbody>
-        {activeRows.map((row, ri) => {
-          const hours = row.timeType ? defaultTimeFor(row.timeType, shiftTimes) : '';
+        {rows.map((row, ri) => {
           const rowBg = ri % 2 === 0 ? C.rowOdd : C.rowEven;
           return (
             <tr key={row.key}>
@@ -220,56 +106,63 @@ function ScheduleTable({ schedule, employees, shiftTimes }) {
                 className="py-2 px-2 align-middle"
               >
                 <div className="text-[14px] font-bold leading-tight">{row.label}</div>
-                {hours && (
-                  <div
-                    style={{ color: C.shiftHours, direction: 'ltr' }}
-                    className="text-[11px] font-mono mt-0.5"
-                  >
-                    {hours}
+                {row.hours && (
+                  <div style={{ color: C.shiftHours, direction: 'ltr' }} className="text-[11px] font-mono mt-0.5">
+                    {row.hours}
                   </div>
                 )}
               </th>
 
-              {DAY_KEYS.map((dayKey) => {
-                if (isReshemRow(row)) {
-                  const names = reshemNamesForDay(dayKey);
-                  return (
-                    <td
-                      key={dayKey}
-                      style={{ backgroundColor: rowBg, border: cellBorder }}
-                      className="py-1.5 px-1 align-top"
-                    >
-                      {names.length > 0
-                        ? names.map((n, i) => (
-                            <div key={i} style={{ color: C.name }} className="font-bold text-[15px] leading-tight">
-                              {n}
-                            </div>
-                          ))
-                        : <span style={{ color: C.muted }} className="text-[13px]">—</span>}
-                    </td>
-                  );
-                }
-
-                const slots = slotsForRowDay(row, dayKey).filter(
-                  (s) => isAdHocRow(row) || slotHasContent(s)
-                );
-                return (
-                  <td
-                    key={dayKey}
-                    style={{ backgroundColor: rowBg, border: cellBorder }}
-                    className="py-1.5 px-1 align-top"
-                  >
-                    {slots.length > 0
-                      ? slots.map(renderSlot)
-                      : <span style={{ color: C.muted }} className="text-[13px]">—</span>}
-                  </td>
-                );
-              })}
+              {row.days.map((entries, i) => (
+                <td
+                  key={DAY_KEYS[i]}
+                  style={{ backgroundColor: rowBg, border: cellBorder }}
+                  className="py-1.5 px-1 align-top"
+                >
+                  {entries.length > 0
+                    ? entries.map((entry, ei) => <CellEntry key={ei} entry={entry} />)
+                    : <span style={{ color: C.muted }} className="text-[13px]">—</span>}
+                </td>
+              ))}
             </tr>
           );
         })}
       </tbody>
     </table>
+  );
+}
+
+// ── Square image preview + download ───────────────────────────────────────────
+
+function SquareExport({ data }) {
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    const canvas = exportScheduleSquareCanvas(data, 1080);
+    canvas.style.width  = '100%';
+    canvas.style.height = 'auto';
+    canvas.style.display = 'block';
+    canvas.style.borderRadius = '12px';
+    wrapRef.current.replaceChildren(canvas);
+  }, [data]);
+
+  return (
+    <div className="max-w-[420px] mx-auto">
+      <div
+        ref={wrapRef}
+        className="rounded-xl overflow-hidden shadow-md border border-gray-200 bg-white"
+      />
+      <button
+        onClick={() => downloadScheduleSquare(data, 1080)}
+        className="mt-3 w-full bg-[#1a2e4a] hover:bg-[#24395c] text-white font-bold rounded-xl py-3 transition-colors"
+      >
+        📷 הורד תמונה מרובעת (לקבוצת וואטסאפ)
+      </button>
+      <div className="text-center text-xs text-gray-400 mt-1.5">
+        תמונה ריבועית 1080×1080 — מתאימה לתמונת פרופיל של קבוצה
+      </div>
+    </div>
   );
 }
 
@@ -307,7 +200,9 @@ export function ScheduleViewPage() {
     );
   }
 
-  const { schedule, scheduleDate, scheduleNotes, employees = [], shiftTimes = {}, savedAt } = data;
+  const { scheduleDate, scheduleNotes, savedAt } = data;
+
+  const rows = buildScheduleView(data);
 
   const savedDate = savedAt
     ? new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(savedAt))
@@ -340,10 +235,15 @@ export function ScheduleViewPage() {
         </div>
       )}
 
-      {/* Schedule — single square table for all screen sizes */}
-      <div className="flex-1 p-3">
+      {/* Square image for WhatsApp group picture */}
+      <div className="p-4 shrink-0">
+        <SquareExport data={data} />
+      </div>
+
+      {/* Readable table */}
+      <div className="flex-1 px-3 pb-4">
         <div className="mx-auto max-w-[760px] overflow-x-auto">
-          <ScheduleTable schedule={schedule} employees={employees} shiftTimes={shiftTimes} />
+          <ScheduleTable rows={rows} />
         </div>
       </div>
 
