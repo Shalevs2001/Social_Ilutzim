@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase';
 import { exportScheduleSquareCanvas } from '../../utils/exportScheduleSquare';
+import { pickQuote } from '../../utils/funnyQuotes';
 
 const SQUARE_SIZE = 2160;
 
@@ -9,6 +10,12 @@ const SQUARE_SIZE = 2160;
 
 function SquareExport({ data }) {
   const [src, setSrc] = useState(null);
+
+  // A different funny quote per schedule (seeded by the publish time).
+  const quote = useMemo(
+    () => pickQuote(data?.savedAt ?? data?.scheduleDate),
+    [data?.savedAt, data?.scheduleDate]
+  );
 
   useEffect(() => {
     const canvas = exportScheduleSquareCanvas(data, SQUARE_SIZE);
@@ -24,8 +31,9 @@ function SquareExport({ data }) {
         alt="סידור משמרות"
         className="w-full rounded-xl shadow-md"
       />
-      <div className="text-center text-sm text-gray-400 mt-2">
-        תמונה ריבועית {SQUARE_SIZE}×{SQUARE_SIZE} — לחיצה ימנית / לחיצה ארוכה על התמונה כדי לשמור
+      <div className="text-center mt-3 px-2">
+        <p className="text-gray-600 italic leading-snug">"{quote.text}"</p>
+        <p className="text-gray-400 text-sm mt-1">— {quote.author}</p>
       </div>
     </div>
   );
