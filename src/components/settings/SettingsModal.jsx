@@ -64,21 +64,8 @@ function RequirementsTab() {
             {isOpen && (
               <div className="px-4 py-3 bg-white border-t border-gray-100 flex flex-col gap-1.5">
                 {emp.isRashetBet ? (
-                  // Rashet-bet editors: a single optional shift count (0–6), no weekend/evening obligations.
-                  <div className="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">
-                    <span className="text-xs text-gray-700">משמרות רשת ב׳ <span className="text-[10px] text-gray-400">(0–6)</span></span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={6}
-                      value={emp.requirementOverrides?.reshet_bet_count ?? ''}
-                      placeholder="—"
-                      onChange={(e) => {
-                        const val = e.target.value === '' ? null : Math.max(0, Math.min(6, Number(e.target.value)));
-                        updateEmployeeRequirementOverride(emp.id, 'reshet_bet_count', val);
-                      }}
-                      className="w-12 text-center border border-gray-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:border-[#38bcd4] placeholder-gray-300"
-                    />
+                  <div className="bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">
+                    <span className="text-xs text-sky-700">עורך רשת ב׳ — ללא דרישות חובה</span>
                   </div>
                 ) : (
                   REQ_DEFS.map((def) => {

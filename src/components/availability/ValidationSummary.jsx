@@ -51,21 +51,9 @@ export function useEmployeeValidation(empId) {
     return count;
   };
 
-  // ── Rashet-bet editors: only a single optional shift count (0–6). ─────────
-  // No weekend/evening obligations and no quota-based minimum.
+  // ── Rashet-bet editors: no mandatory requirements at all. ─────────────────
   if (emp.isRashetBet) {
-    const reshetMin = emp.requirementOverrides?.reshet_bet_count ?? 0;
-    if (reshetMin > 0 && totalMarked < reshetMin) {
-      errors.push(`משמרות רשת ב׳ — חסרות ${reshetMin - totalMarked} מתוך ${reshetMin}`);
-    }
-    return {
-      errors,
-      warnings,
-      totalMarked,
-      totalRegular,
-      totalLow,
-      passed: errors.length === 0,
-    };
+    return { errors: [], warnings: [], totalMarked, totalRegular, totalLow, passed: true };
   }
 
   // ── Rule 1: Minimum availability count ───────────────────────────────────
