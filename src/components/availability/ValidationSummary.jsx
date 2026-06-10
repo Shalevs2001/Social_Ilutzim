@@ -51,9 +51,24 @@ export function useEmployeeValidation(empId) {
     return count;
   };
 
-  // ── Rashet-bet editors: no mandatory requirements at all. ─────────────────
+  // ── Rashet-bet editors: validate only against their morning-family availability count. ──
   if (emp.isRashetBet) {
-    return { errors: [], warnings: [], totalMarked, totalRegular, totalLow, passed: true };
+    let rashetCount = 0;
+    DAY_KEYS.forEach((day) => {
+      const d = empAvail[day] ?? {};
+      const vals = [d.morning, d.short_morning, d.weekend_morning];
+      if (vals.some((v) => v === AVAIL.regular || v === AVAIL.low)) rashetCount++;
+    });
+    const rashetRequired = emp.quota ?? 0;
+    const passed = rashetRequired === 0 || rashetCount >= rashetRequired;
+    if (!passed) {
+      errors.push(`זמינות רשת ב׳ — ${rashetCount} מתוך ${rashetRequired} נדרשות`);
+    }
+    return {
+      errors, warnings: [], totalMarked: rashetCount,
+      totalRegular: rashetCount, totalLow: 0, passed,
+      isRashetBet: true, rashetCount, rashetRequired,
+    };
   }
 
   // ── Rule 1: Minimum availability count ───────────────────────────────────
@@ -129,10 +144,42 @@ export function ValidationBadge({ empId }) {
  * Detailed validation panel shown below the grid for the selected employee.
  */
 export function ValidationSummary({ empId }) {
-  const { errors, warnings, totalMarked, totalRegular, totalLow, passed } =
-    useEmployeeValidation(empId);
+  const result = useEmployeeValidation(empId);
+  const { errors, warnings, totalMarked, totalRegular, totalLow, passed } = result;
   const { employees } = useApp();
   const emp = employees.find((e) => e.id === empId);
+
+  // ── Rashet-bet: simplified summary ────────────────────────────────────────
+  if (emp?.isRashetBet) {
+    const { rashetCount, rashetRequired } = result;
+    const ok = rashetRequired === 0 || rashetCount >= rashetRequired;
+    return (
+      <div className={`rounded-xl border p-3 text-xs ${ok ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+        <div className="flex items-center gap-3 mb-2 flex-wrap">
+          <span className="font-semibold text-gray-700">סיכום — {emp.name}</span>
+          <span className="bg-white border border-gray-200 rounded-full px-2 py-0.5">
+            זמינות רשת ב׳: <strong>{rashetCount}</strong>
+          </span>
+          {rashetRequired > 0 && (
+            <span className={`rounded-full px-2 py-0.5 border ${ok ? 'bg-green-100 border-green-300 text-green-700' : 'bg-red-100 border-red-300 text-red-700'}`}>
+              נדרש: <strong>{rashetRequired}</strong>
+            </span>
+          )}
+        </div>
+        {ok ? (
+          <div className="flex items-center gap-1.5 text-green-700">
+            <span className="font-bold">✓</span>
+            <span>עומד בדרישות</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-red-700">
+            <span className="font-bold">✕</span>
+            <span>חסרות {rashetRequired - rashetCount} זמינויות רשת ב׳</span>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-xl border p-3 text-xs ${passed && warnings.length === 0 ? 'bg-green-50 border-green-200' : errors.length > 0 ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>

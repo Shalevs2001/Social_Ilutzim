@@ -37,7 +37,7 @@ const REQ_DEFS = [
 // ─── Tab 1: Mandatory requirements ───────────────────────────────────────────
 
 function RequirementsTab() {
-  const { employees, updateEmployeeRequirementOverride } = useApp();
+  const { employees, updateEmployeeRequirementOverride, updateEmployeeQuota } = useApp();
   const [expandedEmpId, setExpandedEmpId] = useState(null);
   const regular = employees.filter((e) => !e.joker);
 
@@ -64,8 +64,22 @@ function RequirementsTab() {
             {isOpen && (
               <div className="px-4 py-3 bg-white border-t border-gray-100 flex flex-col gap-1.5">
                 {emp.isRashetBet ? (
-                  <div className="bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">
-                    <span className="text-xs text-sky-700">עורך רשת ב׳ — ללא דרישות חובה</span>
+                  <div className="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">
+                    <span className="text-xs text-gray-700">
+                      מינימום משמרות רשת ב׳
+                      <span className="text-[10px] text-gray-400"> (0 = ללא דרישה)</span>
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={7}
+                      value={emp.quota ?? 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, Math.min(7, Number(e.target.value)));
+                        updateEmployeeQuota(emp.id, val);
+                      }}
+                      className="w-12 text-center border border-gray-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:border-[#38bcd4]"
+                    />
                   </div>
                 ) : (
                   REQ_DEFS.map((def) => {
