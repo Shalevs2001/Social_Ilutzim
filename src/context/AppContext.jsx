@@ -198,7 +198,7 @@ export function AppProvider({ children, isAdmin = false }) {
   useEffect(() => {
     if (!isAdmin || !hasCustomEmployees) return;
     fbSet(ref(db, 'employeeRoster'),
-      employees.map(({ id, name, joker }) => ({ id, name, joker: joker ?? false }))
+      employees.map(({ id, name, joker, isRashetBet }) => ({ id, name, joker: joker ?? false, isRashetBet: isRashetBet ?? false }))
     ).catch(() => {});
   }, [isAdmin, hasCustomEmployees, employees]);
   const effectiveEmployees = (!isAdmin && firebaseEmployees) ? firebaseEmployees : employees;
