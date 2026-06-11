@@ -18,6 +18,11 @@ export const VIEW_ROW_DEFS = [
 
 const ADHOC_ONLY = new Set(['reshem_bet', 'custom']);
 
+// Types that can be swapped via the slot's ↔ toggle. A custom time left over from
+// the partner type (e.g. a דגימות slot switched to ערב keeping its 19:00 start)
+// must not be read as an hours change — the דגימות tag already conveys it.
+const TOGGLE_PARTNER = { evening: 'samples', samples: 'evening' };
+
 // Rows that make up the fixed skeleton — always shown (with their hours in the
 // right-hand column) even when the week has no shifts yet. 'custom' is shown
 // only when there's actually an ad-hoc shift.
@@ -105,10 +110,18 @@ export function buildScheduleView({ schedule, employees = [], shiftTimes = {} })
         // against the morning standard so it reads as "עד 13:00".
         const refType   = s.type === 'short_morning' ? 'morning' : s.type;
         const effective = s.time || defaultTimeFor(s.type, shiftTimes);
+        let deviation = formatDeviation(effective, defaultTimeFor(refType, shiftTimes));
+        // Suppress a stale time that matches the toggle-partner's standard hours
+        // (e.g. an ערב slot still timed like דגימות after a ↔ switch).
+        const partner = TOGGLE_PARTNER[s.type];
+        if (deviation && s.time && partner &&
+            formatDeviation(effective, defaultTimeFor(partner, shiftTimes)) === null) {
+          deviation = null;
+        }
         return {
           names: namesOf(s),
           tags,
-          deviation: formatDeviation(effective, defaultTimeFor(refType, shiftTimes)),
+          deviation,
           customLabel: s.type === 'custom' ? (s.label ?? null) : null,
         };
       });
