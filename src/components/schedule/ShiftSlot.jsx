@@ -380,6 +380,7 @@ export function ShiftSlot({ slot, dayKey, isAdHoc = false, compact = false, fill
       type:    newType,
       status:  newStatus,
       status2: newStatus2,
+      time:    null,   // drop any custom time — it belonged to the previous type
     });
 
     // Alert if any assigned employee becomes forced after the type switch
