@@ -1,48 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { DAYS, DAY_KEYS, WEEKEND_DAYS, SHIFT_TYPES } from '../../constants';
+import { exportScheduleSquareCanvas } from '../../utils/exportScheduleSquare';
+
+const SQUARE_SIZE = 2160;
 
 /**
- * Read-only rendering of a single archived schedule.
+ * Read-only rendering of a single archived schedule — visually identical to the
+ * /view page: the same square Canvas image (shift column + hours, 7 day columns,
+ * employee names, deviation/flag tags).
  */
 function ArchivedScheduleView({ archive }) {
-  const { schedule = {}, employees = [] } = archive;
-  const nameOf = (id) => employees.find((e) => e.id === id)?.name ?? (id || '');
+  const [src, setSrc] = useState(null);
 
-  const renderSlot = (slot) => {
-    const meta  = SHIFT_TYPES[slot.type];
-    const label = slot.label || meta?.label || slot.type;
-    const names = [slot.employee, slot.employee2].filter(Boolean).map(nameOf).join(' · ');
-    return (
-      <div
-        key={slot.id}
-        className={`rounded-lg border px-2 py-1.5 text-xs ${meta?.color ?? 'bg-gray-50 border-gray-200'} ${meta?.textColor ?? 'text-gray-700'}`}
-      >
-        <div className="font-semibold">{label}</div>
-        <div className={names ? 'text-gray-800' : 'text-gray-400'}>
-          {names || '—'}
-        </div>
-      </div>
-    );
-  };
+  useEffect(() => {
+    if (!archive) return;
+    const canvas = exportScheduleSquareCanvas(archive, SQUARE_SIZE);
+    setSrc(canvas.toDataURL('image/png'));
+  }, [archive]);
+
+  if (!src) return null;
 
   return (
-    <div className="grid grid-cols-7 gap-2 min-w-[760px]" dir="rtl">
-      {DAY_KEYS.map((dayKey, i) => {
-        const day   = schedule[dayKey] ?? {};
-        const slots = [...(day.slots ?? []), ...(day.adHocShifts ?? [])];
-        return (
-          <div key={dayKey} className="flex flex-col gap-1.5">
-            <div className={`text-center text-sm font-bold py-1 rounded-lg ${
-              WEEKEND_DAYS.includes(dayKey) ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-700'
-            }`}>
-              {DAYS[i]}
-            </div>
-            {slots.length ? slots.map(renderSlot)
-              : <div className="text-center text-[11px] text-gray-300 py-2">—</div>}
-          </div>
-        );
-      })}
+    <div className="max-w-[520px] mx-auto">
+      <img src={src} alt="סידור משמרות" className="w-full rounded-xl shadow-md" />
     </div>
   );
 }
