@@ -13,6 +13,7 @@ import {
 } from '../constants';
 import { runAutoSchedule, DEFAULT_SHIFT_PRIORITY, shiftWeight } from '../utils/autoSchedule';
 import { getUpcomingSunday, addDaysISO, formatWeekTitle } from '../utils/weekDates';
+import { pickTeamCompliment } from '../utils/funnyQuotes';
 
 // Runs once at module load — before any hook reads localStorage.
 // If stored settings version doesn't match, wipe and replace with defaults.
@@ -160,7 +161,12 @@ export function AppProvider({ children, isAdmin = false }) {
 
   // Submissions — driven by Firebase  { empId: { submitted, submittedAt, editing } }
   const [submissions, _setSubmissions] = useState({});
-  useEffect(() => onValue(ref(db, 'submissions'), (s) => _setSubmissions(s.val() ?? {})), []);
+  const submissionsRef = useRef({});
+  useEffect(() => onValue(ref(db, 'submissions'), (s) => {
+    const val = s.val() ?? {};
+    submissionsRef.current = val;
+    _setSubmissions(val);
+  }), []);
 
   // Approval requests — driven by Firebase  { empId: { empId, empName, timestamp } }
   const [approvalRequests, _setApprovalRequests] = useState({});
@@ -624,10 +630,31 @@ export function AppProvider({ children, isAdmin = false }) {
     draftEmpIdRef.current = null;
   }, []);
 
+  // When this submission completes the set (every non-manager employee has now
+  // submitted), drop a celebratory notification with a funny team compliment.
+  // Only fires on the transition into "all submitted" — re-submits/edits by an
+  // already-submitted employee won't re-trigger it.
+  const _maybeCelebrateAllSubmitted = useCallback((empId) => {
+    const regular = employeesRef.current.filter((e) => !e.joker);
+    if (regular.length === 0) return;
+    const alreadySubmitted = !!submissionsRef.current[empId]?.submitted;
+    if (alreadySubmitted) return;  // not a newly-completing submission
+    const allSubmitted = regular.every(
+      (e) => e.id === empId || submissionsRef.current[e.id]?.submitted
+    );
+    if (!allSubmitted) return;
+    const now = Date.now();
+    fbSet(ref(db, `notifications/allsub_${now}`), {
+      empId: 'all', empName: 'הצוות', type: 'all_submitted',
+      message: pickTeamCompliment(now), timestamp: now, read: false,
+    }).catch(console.error);
+  }, []);
+
   const submitAvailability = useCallback((empId) => {
     _flushDraft(empId);
     const emp = employeesRef.current.find((e) => e.id === empId);
     const now = Date.now();
+    _maybeCelebrateAllSubmitted(empId);
     fbSet(ref(db, `submissions/${empId}`), { submitted: true, submittedAt: now, editing: false })
       .catch(console.error);
     fbSet(ref(db, `notifications/sub_${now}_${empId}`), {
@@ -636,7 +663,7 @@ export function AppProvider({ children, isAdmin = false }) {
     // Save notes snapshot
     fbSet(ref(db, `notesSnapshots/${empId}`), employeeNotesRef.current[empId] ?? null)
       .catch(console.error);
-  }, [_flushDraft]);
+  }, [_flushDraft, _maybeCelebrateAllSubmitted]);
 
   // Request approval from manager (employee submitted invalid availability)
   const requestApproval = useCallback((empId) => {
@@ -656,6 +683,7 @@ export function AppProvider({ children, isAdmin = false }) {
   const approveSubmission = useCallback((empId) => {
     const emp = employeesRef.current.find((e) => e.id === empId);
     const now = Date.now();
+    _maybeCelebrateAllSubmitted(empId);
     // Mark as submitted
     fbSet(ref(db, `submissions/${empId}`), { submitted: true, submittedAt: now, editing: false })
       .catch(console.error);
@@ -671,7 +699,7 @@ export function AppProvider({ children, isAdmin = false }) {
     fbSet(ref(db, `notifications/approved_${now}_${empId}`), {
       empId, empName: emp?.name ?? empId, type: 'approved', timestamp: now, read: false,
     }).catch(console.error);
-  }, []);
+  }, [_maybeCelebrateAllSubmitted]);
 
   // Manager rejects a pending request
   const rejectApproval = useCallback((empId) => {

@@ -194,18 +194,27 @@ function NotificationsBell() {
               {/* ── Regular notifications ── */}
               {notifications.map((n) => (
                 <li key={n.id} className="px-4 py-3 flex items-start gap-3 group">
-                  <span className="text-lg shrink-0">{n.type === 'submitted' ? '📬' : n.type === 'approved' ? '✅' : '✏️'}</span>
+                  <span className="text-lg shrink-0">{n.type === 'submitted' ? '📬' : n.type === 'approved' ? '✅' : n.type === 'all_submitted' ? '🎉' : '✏️'}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-gray-800">
-                      <span className="font-semibold">{n.empName}</span>
-                      {(() => {
-                        const emp = employees.find((e) => e.id === n.empId);
-                        const isFemale = emp?.gender === 'female';
-                        if (n.type === 'submitted') return isFemale ? ' הגישה אילוצים' : ' הגיש אילוצים';
-                        if (n.type === 'approved')  return ' — אישרת הגשה חריגה';
-                        return isFemale ? ' עדכנה אילוצים' : ' עדכן אילוצים';
-                      })()}
-                    </div>
+                    {n.type === 'all_submitted' ? (
+                      <div className="text-sm text-gray-800">
+                        <span className="font-semibold">כל העובדים הגישו אילוצים! 🎉</span>
+                        {n.message && (
+                          <div className="text-xs text-gray-600 mt-1 leading-snug">{n.message}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-800">
+                        <span className="font-semibold">{n.empName}</span>
+                        {(() => {
+                          const emp = employees.find((e) => e.id === n.empId);
+                          const isFemale = emp?.gender === 'female';
+                          if (n.type === 'submitted') return isFemale ? ' הגישה אילוצים' : ' הגיש אילוצים';
+                          if (n.type === 'approved')  return ' — אישרת הגשה חריגה';
+                          return isFemale ? ' עדכנה אילוצים' : ' עדכן אילוצים';
+                        })()}
+                      </div>
+                    )}
                     <div className="text-[11px] text-gray-400 mt-0.5">{formatTime(n.timestamp)}</div>
                   </div>
                   <button

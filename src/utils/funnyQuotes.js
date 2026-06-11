@@ -27,3 +27,29 @@ export function pickQuote(seed) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return FUNNY_QUOTES[h % FUNNY_QUOTES.length];
 }
+
+// Short, funny compliments addressed to the whole team — shown when every
+// employee has submitted their availability. Meant to be copy-pasted into the
+// team's group chat.
+export const TEAM_COMPLIMENTS = [
+  'כולם הגישו אילוצים! 🎉 הצוות הכי אחראי מאז שהומצאה המילה "אחריות".',
+  'וואו, כולם בזמן! אתם מדויקים יותר משעון שוויצרי ומצחיקים יותר ממנו. ⏱️',
+  'הגשתם הכל! מישהו פה ראוי לבונוס — וזה כולכם. (התקציב פחות מסכים, אבל הלב כן.) 💸',
+  'כל האילוצים בפנים! הצוות הזה רץ חלק יותר משידור חי בלי תקלות. 📺',
+  'כולם הגישו! אתם לא צוות, אתם מכונה משומנת — ומצחיקה במיוחד. 🤖',
+  'מלא 100%! הגשתם מהר יותר ממה שלוקח להגיד "סושיאל כאן חדשות". 🚀',
+  'כל הכבוד צוות! הגשתם הכל בלי שהייתי צריך לרדוף אחרי אף אחד. שיא חדש! 🏆',
+  'כולם הגישו אילוצים — הצוות הזה אמין יותר מהתחזית של מזג האוויר. ☀️',
+  'בום! כולם בפנים. אתם הוכחה חיה שאפשר גם לעמוד בדדליין וגם לחייך. 😎',
+  'הגשה מלאה! הצוות הזה כל כך מתואם שאפשר לנגן עליו סימפוניה. 🎻',
+  'כולם הגישו! אם הייתה מדליה על אחריות, הייתם לוקחים זהב, כסף וארד. 🥇',
+  'מאה אחוז הגשה! אתם פשוט אלופים — וגם נחמדים, וזה הצירוף הכי נדיר. 💪',
+];
+
+/** Pick a funny team compliment from a seed (random per occurrence). */
+export function pickTeamCompliment(seed) {
+  const s = String(seed ?? Math.random());
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return TEAM_COMPLIMENTS[h % TEAM_COMPLIMENTS.length];
+}
