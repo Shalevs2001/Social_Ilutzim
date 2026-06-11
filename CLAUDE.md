@@ -162,6 +162,8 @@ Never commit directly to `main`. If Claude Code suggests a push without first ch
 
 The admin publishes the schedule to Firebase `sharedSchedule` manually via the "עדכן גרסה לצפייה" button (`publishView` in AppContext). The `/view` page listens in real-time with `onValue`, so it stays frozen on the last published version even while the admin edits a new schedule. A published version is always `visible: true`; if nothing was ever published the `/view` page shows the "under construction" placeholder.
 
+`openNewSchedule` archives the **published** `sharedSchedule` version (what employees actually saw) into `archivedSchedules`, not the in-progress working draft — it falls back to the working draft only if nothing was ever published.
+
 For Netlify: `public/_redirects` contains `/* /index.html 200`.
 For Vercel: `vercel.json` with rewrites to `/index.html`.
 

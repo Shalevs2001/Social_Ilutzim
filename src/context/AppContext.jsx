@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useState, useEffect, useRef, useMemo } from 'react';
-import { ref, set as fbSet, onValue, remove } from 'firebase/database';
+import { ref, set as fbSet, onValue, remove, get } from 'firebase/database';
 import { db } from '../firebase';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import {
@@ -738,17 +738,28 @@ export function AppProvider({ children, isAdmin = false }) {
 
   // Archive the current schedule and open a fresh one for the following week.
   const openNewSchedule = useCallback(() => {
-    confirm('לפתוח שיבוץ חדש? השיבוץ הנוכחי יישמר בתיקיית השיבוצים הקודמים.', () => {
+    confirm('לפתוח שיבוץ חדש? השיבוץ הנוכחי יישמר בתיקיית השיבוצים הקודמים.', async () => {
       const now = Date.now();
-      // 1. Archive the current schedule
+      // 1. Archive the schedule that was published to the /view page (what the
+      //    employees actually saw), not the in-progress working draft. Falls
+      //    back to the working draft if nothing was ever published.
+      let published = null;
+      try {
+        const snap = await get(ref(db, 'sharedSchedule'));
+        if (snap.exists()) published = snap.val();
+      } catch (e) { console.error(e); }
+
+      const hasPublished = published && published.schedule;
       fbSet(ref(db, `archivedSchedules/${now}`), {
-        title:      weekTitle || scheduleDate || '',
-        weekStart:  weekStart ?? null,
-        schedule:   scheduleRef.current,
-        scheduleNotes: scheduleNotes ?? '',
-        employees:  employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
-        shiftTimes,
-        savedAt:    now,
+        title:         (hasPublished ? published.scheduleDate : weekTitle || scheduleDate) || '',
+        weekStart:     weekStart ?? null,
+        schedule:      hasPublished ? published.schedule : scheduleRef.current,
+        scheduleNotes: (hasPublished ? published.scheduleNotes : scheduleNotes) ?? '',
+        employees:     hasPublished && published.employees
+          ? published.employees
+          : employees.map(({ id: eid, name, joker }) => ({ id: eid, name, joker: joker ?? false })),
+        shiftTimes:    (hasPublished ? published.shiftTimes : shiftTimes) ?? shiftTimes,
+        savedAt:       now,
       }).catch(console.error);
       // 2. Open a fresh schedule for next week (Sunday → Saturday)
       setSchedule(makeEmptySchedule());
