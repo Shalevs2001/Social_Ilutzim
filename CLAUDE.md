@@ -116,8 +116,11 @@ Clipboard copy uses `src/utils/clipboard.js` which falls back to `execCommand` o
 
 ### Live server: Hetzner (46.224.228.163)
 
-- **Production** → port 3000 → served from `/var/www/shift-scheduler/`
-- **Staging** → port 3001 → served from `/var/www/shift-scheduler-staging/`
+- **Production** → https://socialshifts.benzcohq.com — port 3000 → served from `/var/www/shift-scheduler/`
+  - main page: https://socialshifts.benzcohq.com/
+  - view version: https://socialshifts.benzcohq.com/view
+  - employee login: https://socialshifts.benzcohq.com/employee
+- **Staging** → https://socialshifts-staging.benzcohq.com — port 3001 → served from `/var/www/shift-scheduler-staging/`
 - nginx config at `/etc/nginx/sites-available/shift-scheduler` (and `-staging`)
 - Static files served by nginx with `try_files $uri /index.html` for SPA routing
 
@@ -147,7 +150,7 @@ Required GitHub Secrets (Settings → Secrets → Actions):
    git commit -m "description of change"
    git push        # → auto-deploys to staging at port 3001
    ```
-3. Check the change works on **http://46.224.228.163:3001**
+3. Check the change works on **https://socialshifts-staging.benzcohq.com**
 4. When ready for production, merge into `main`:
    ```bash
    git checkout main
