@@ -24,6 +24,10 @@ export function DraggableEmployeeCard({ emp, count }) {
   const met          = !isJoker && !over && count >= emp.quota;
   const belowMin     = !isJoker && !over && !met && minQ > 0 && count < minQ;
   const isHighlighted = highlightEmpId === emp.id;
+  // Faint-red card when an editor is short of their required shifts (couldn't
+  // get enough due to their constraints) — minQuota if set, otherwise quota.
+  const shortTarget  = minQ > 0 ? minQ : emp.quota;
+  const isShort      = !isJoker && count < shortTarget;
 
   const handleDoubleClick = (e) => {
     e.stopPropagation();
@@ -40,7 +44,7 @@ export function DraggableEmployeeCard({ emp, count }) {
       className={`flex items-center justify-between p-2 rounded-lg border
         cursor-grab active:cursor-grabbing hover:border-[#38bcd4] hover:bg-[#e8f4f8]
         transition-colors select-none touch-none
-        ${isJoker ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'}
+        ${isJoker ? 'bg-purple-50 border-purple-200' : isShort ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}
         ${isDragging ? 'opacity-30 scale-95' : ''}
         ${isHighlighted ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
       title="גרור לשיבוץ / לחץ פעמיים להדגשת זמינות"

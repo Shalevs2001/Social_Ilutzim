@@ -97,6 +97,22 @@ function makeEmptyAvailability(employees) {
   return avail;
 }
 
+// Merge raw Firebase availability data onto an empty matrix built for the
+// CURRENT roster. Data for employees not in the roster is ignored; new
+// employees get a blank matrix so their (possibly empty) availability still
+// renders in the constraints view.
+function mergeAvailability(data, employees) {
+  const base = makeEmptyAvailability(employees);
+  Object.entries(data ?? {}).forEach(([empId, days]) => {
+    if (!base[empId]) return;
+    Object.entries(days ?? {}).forEach(([dayKey, slots]) => {
+      if (!base[empId][dayKey]) return;
+      Object.assign(base[empId][dayKey], slots ?? {});
+    });
+  });
+  return base;
+}
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const AppContext = createContext(null);
@@ -203,16 +219,37 @@ export function AppProvider({ children, isAdmin = false }) {
   }, [isAdmin]);
   useEffect(() => {
     if (!isAdmin || !hasCustomEmployees) return;
-    fbSet(ref(db, 'employeeRoster'),
-      employees.map(({ id, name, joker, isRashetBet }) => ({ id, name, joker: joker ?? false, isRashetBet: isRashetBet ?? false }))
-    ).catch(() => {});
+    // Persist the FULL roster (quota, minQuota, gender, preferences, …) so it
+    // survives localStorage being cleared (deploys / a fresh browser). The JSON
+    // round-trip drops `undefined` fields that Firebase would reject.
+    fbSet(ref(db, 'employeeRoster'), JSON.parse(JSON.stringify(employees))).catch(() => {});
   }, [isAdmin, hasCustomEmployees, employees]);
+
+  // Admin: one-time hydrate from Firebase when the local roster is still at
+  // defaults (e.g. localStorage was wiped by a deploy, or this is a fresh
+  // browser). This stops the roster from snapping back to DEFAULT_EMPLOYEES and
+  // losing employees that were added earlier — the saved roster is the source
+  // of truth, not the original hard-coded defaults.
+  const rosterHydratedRef = useRef(false);
+  useEffect(() => {
+    if (!isAdmin || rosterHydratedRef.current) return;
+    rosterHydratedRef.current = true;
+    get(ref(db, 'employeeRoster')).then((snap) => {
+      const val = snap.val();
+      if (Array.isArray(val) && val.length && !hasCustomEmployees) {
+        setEmployees(val);
+      }
+    }).catch(() => {});
+  }, [isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
   const effectiveEmployees = (!isAdmin && firebaseEmployees) ? firebaseEmployees : employees;
 
   // Availability — driven by Firebase Realtime Database
   const [availability, _setAvailState] = useState(() => makeEmptyAvailability(DEFAULT_EMPLOYEES));
   const availabilityRef = useRef(availability);
   useEffect(() => { availabilityRef.current = availability; }, [availability]);
+  // Latest raw Firebase availability payload, kept so we can re-merge it against
+  // the roster whenever the roster changes (new / hydrated employees).
+  const rawAvailabilityRef = useRef({});
 
   // Draft availability — local edits in employee view, only flushed to Firebase on submit
   const [availDraft, _setAvailDraft] = useState(null);   // { dayKey: { shiftType: value } } | null
@@ -256,21 +293,18 @@ export function AppProvider({ children, isAdmin = false }) {
   useEffect(() => {
     const availRef = ref(db, 'availability');
     const unsubscribe = onValue(availRef, (snapshot) => {
-      const data = snapshot.val() ?? {};
-      _setAvailState(() => {
-        const base = makeEmptyAvailability(employeesRef.current);
-        Object.entries(data).forEach(([empId, days]) => {
-          if (!base[empId]) return;
-          Object.entries(days ?? {}).forEach(([dayKey, slots]) => {
-            if (!base[empId][dayKey]) return;
-            Object.assign(base[empId][dayKey], slots ?? {});
-          });
-        });
-        return base;
-      });
+      rawAvailabilityRef.current = snapshot.val() ?? {};
+      _setAvailState(mergeAvailability(rawAvailabilityRef.current, employeesRef.current));
     });
     return () => unsubscribe();
   }, []); // subscribe once
+
+  // Re-merge availability whenever the roster changes so a newly-added (or
+  // newly-hydrated) employee's submitted availability appears in the constraints
+  // view, instead of only loading on the next Firebase availability change.
+  useEffect(() => {
+    _setAvailState(mergeAvailability(rawAvailabilityRef.current, effectiveEmployees));
+  }, [effectiveEmployees]);
 
   // Ephemeral UI state
   const [activeView,        setActiveView]        = useState('schedule');

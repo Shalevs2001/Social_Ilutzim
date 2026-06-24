@@ -29,6 +29,17 @@ function allDaySlots(dayData) {
   return [...dayData.slots, ...dayData.adHocShifts];
 }
 
+// How many availability options an employee marked across the whole week
+// (any 'regular' or 'low' cell). Used as a tiebreaker: when two editors compete
+// for the same single shift, the one who offered more availability that week wins.
+function weeklyAvailabilityCount(empId, availability) {
+  let count = 0;
+  Object.values(availability[empId] ?? {}).forEach((day) => {
+    Object.values(day ?? {}).forEach((v) => { if (v) count += 1; });
+  });
+  return count;
+}
+
 function wouldCauseClopen(empId, dayKey, shiftType, schedule) {
   if (EVENING_TYPES.has(shiftType)) {
     const nextKey = adjacentDay(dayKey, 1);
@@ -110,6 +121,11 @@ export function runAutoSchedule(schedule, availability, employees, priorityOrder
   const empShiftCount   = Object.fromEntries(employees.map((e) => [e.id, 0]));
   const empWeekendCount = Object.fromEntries(employees.map((e) => [e.id, 0]));
   const empDayKey       = new Set();
+
+  // Precompute weekly availability counts for the conflict tiebreaker.
+  const availCount = Object.fromEntries(
+    employees.map((e) => [e.id, weeklyAvailabilityCount(e.id, availability)])
+  );
 
   DAY_KEYS.forEach((dayKey) => {
     allDaySlots(result[dayKey]).forEach((slot) => {
@@ -243,7 +259,12 @@ export function runAutoSchedule(schedule, availability, employees, priorityOrder
         }
         return { emp, score, av: best.av, effectiveType: best.effectiveType };
       })
-      .sort((a, b) => a.score - b.score);
+      // Lower score wins; ties go to the editor who offered more availability
+      // this week (more flexible candidate takes the contested shift).
+      .sort((a, b) =>
+        a.score - b.score ||
+        (availCount[b.emp.id] ?? 0) - (availCount[a.emp.id] ?? 0)
+      );
 
     if (!candidates.length) { skipped++; continue; }
 
@@ -268,139 +289,10 @@ export function runAutoSchedule(schedule, availability, employees, priorityOrder
     if (status === 'low') lowCount++;
   }
 
-  // ── Second pass: fill employee2 on slots that already have employee1 ─────
-
-  // Identify primary slots that first pass couldn't fill — these take priority.
-  const stillEmptyPrimary = emptySlots.filter(({ slotId, dayKey, isAdHoc }) => {
-    const slotArr = isAdHoc ? result[dayKey].adHocShifts : result[dayKey].slots;
-    const s = slotArr.find((sl) => sl.id === slotId);
-    return s && !s.employee;
-  });
-
-  const slotsNeedingSecond = [];
-  DAY_KEYS.forEach((dayKey) => {
-    const day = result[dayKey];
-    day.slots.forEach((s) => {
-      if (s.employee && !s.employee2) slotsNeedingSecond.push({ dayKey, slotId: s.id, slotType: s.type, boundType: s.boundType ?? null, isAdHoc: false, primaryEmp: s.employee });
-    });
-    day.adHocShifts.forEach((s) => {
-      if (s.employee && !s.employee2) slotsNeedingSecond.push({ dayKey, slotId: s.id, slotType: s.type, boundType: s.boundType ?? null, isAdHoc: true, primaryEmp: s.employee });
-    });
-  });
-
-  slotsNeedingSecond.sort((a, b) => {
-    // notAlone slots get priority (0 = wants pair, 1 = no preference)
-    const notAloneA = employees.find((e) => e.id === a.primaryEmp)?.preferences?.notAlone ? 0 : 1;
-    const notAloneB = employees.find((e) => e.id === b.primaryEmp)?.preferences?.notAlone ? 0 : 1;
-    if (notAloneA !== notAloneB) return notAloneA - notAloneB;
-    const count = ({ dayKey, slotType, boundType, primaryEmp }) =>
-      employees.filter((e) => e.id !== primaryEmp && bestAvailability(e.id, dayKey, slotType, availability, boundType) !== null).length;
-    return count(a) - count(b);
-  });
-
-  for (const { dayKey, slotId, slotType, boundType, isAdHoc, primaryEmp } of slotsNeedingSecond) {
-    const candidates = employees
-      .filter((emp) => {
-        if (emp.id === primaryEmp) return false;
-        if (!passesRashetRule(emp, slotType)) return false;
-        if (empDayKey.has(`${emp.id}:${dayKey}`)) return false;
-        if (WEEKEND_DAYS.includes(dayKey) && empWeekendCount[emp.id] >= 1) return false;
-        const best = bestAvailability(emp.id, dayKey, slotType, availability, boundType);
-        if (!best) return false;
-        // For secondary, we cannot switch the slot type — skip if a type-switch would be needed
-        if (best.effectiveType !== slotType) return false;
-        if (emp.quota > 0 && empShiftCount[emp.id] + shiftWeight(slotType) > emp.quota) return false;
-        if (wouldCauseClopen(emp.id, dayKey, best.effectiveType, result)) return false;
-        // Hard-exclude: mandatory avoid rule matches this slot
-        if ((emp.preferences?.shiftRules ?? []).some((rule) =>
-          rule.mandatory && rule.direction === 'avoid' &&
-          rule.shiftType === slotType &&
-          (rule.days?.length === 0 || rule.days.includes(dayKey))
-        )) return false;
-        // Hard-exclude: avoidWithMandatory pairing (bidirectional)
-        const primaryObj2 = employees.find((e) => e.id === primaryEmp);
-        if (emp.preferences?.avoidWithMandatory?.includes(primaryEmp))      return false;
-        if (primaryObj2?.preferences?.avoidWithMandatory?.includes(emp.id)) return false;
-        // Don't use an employee as employee2 if they could fill a still-empty primary slot
-        const couldFillPrimary = stillEmptyPrimary.some(({ dayKey: ed, slotType: est, boundType: ebt }) => {
-          if (!passesRashetRule(emp, est)) return false;
-          if (empDayKey.has(`${emp.id}:${ed}`)) return false;
-          if (WEEKEND_DAYS.includes(ed) && empWeekendCount[emp.id] >= 1) return false;
-          const b = bestAvailability(emp.id, ed, est, availability, ebt);
-          if (!b) return false;
-          if (emp.quota > 0 && empShiftCount[emp.id] + shiftWeight(b.effectiveType) > emp.quota) return false;
-          if (wouldCauseClopen(emp.id, ed, b.effectiveType, result)) return false;
-          return true;
-        });
-        if (couldFillPrimary) return false;
-        return true;
-      })
-      .map((emp) => {
-        const best        = bestAvailability(emp.id, dayKey, slotType, availability, boundType);
-        const fillRate    = emp.quota > 0 ? empShiftCount[emp.id] / emp.quota : 0;
-        const primaryObj  = employees.find((e) => e.id === primaryEmp);
-        let score         = fillRate * 100;
-        // Strong priority boost for employees below their minimum quota
-        const minQ2 = emp.minQuota ?? 0;
-        if (minQ2 > 0 && empShiftCount[emp.id] < minQ2) score -= 300;
-        if (best.av === 'low') score += 200;
-        // Shift rules (prefer / avoid; mandatory prefer = very strong)
-        for (const rule of (emp.preferences?.shiftRules ?? [])) {
-          if (rule.shiftType !== slotType) continue;
-          if (rule.days?.length > 0 && !rule.days.includes(dayKey)) continue;
-          if (rule.direction === 'avoid')  score += 100;
-          if (rule.direction === 'prefer') score  = Math.max(0, score - (rule.mandatory ? 150 : 40));
-        }
-        // Soft: avoid / prefer pairing (bidirectional)
-        if (emp.preferences?.avoidWith?.includes(primaryEmp))       score += 80;
-        if (primaryObj?.preferences?.avoidWith?.includes(emp.id))   score += 80;
-        if (emp.preferences?.preferWith?.includes(primaryEmp))      score -= 40;
-        if (primaryObj?.preferences?.preferWith?.includes(emp.id))  score -= 40;
-        // Hard: prefer pairing (bidirectional) — very strong pull
-        if (emp.preferences?.preferWithMandatory?.includes(primaryEmp))      score -= 150;
-        if (primaryObj?.preferences?.preferWithMandatory?.includes(emp.id))  score -= 150;
-        score = Math.max(0, score);
-        return { emp, score, av: best.av };
-      })
-      .sort((a, b) => a.score - b.score);
-
-    if (!candidates.length) continue;
-
-    const { emp, av } = candidates[0];
-    const status2 = av === 'low' ? 'low' : null;
-
-    const dayData = result[dayKey];
-    const slotArr = isAdHoc ? dayData.adHocShifts : dayData.slots;
-    const slot    = slotArr.find((s) => s.id === slotId);
-    if (slot) { slot.employee2 = emp.id; slot.status2 = status2; }
-
-    empShiftCount[emp.id] += shiftWeight(slotType);
-    empDayKey.add(`${emp.id}:${dayKey}`);
-    if (WEEKEND_DAYS.includes(dayKey)) empWeekendCount[emp.id]++;
-    filled++;
-    if (status2 === 'low') lowCount++;
-  }
-
-  // ── Cleanup: notAlone mandatory — unschedule solo employees ─────────────────
-  DAY_KEYS.forEach((dayKey) => {
-    ['slots', 'adHocShifts'].forEach((arr) => {
-      result[dayKey][arr].forEach((slot) => {
-        if (!slot.employee || slot.employee2) return;
-        const emp = employees.find((e) => e.id === slot.employee);
-        if (emp?.preferences?.notAlone && emp?.preferences?.notAloneMandatory) {
-          empShiftCount[emp.id] = Math.max(0, (empShiftCount[emp.id] ?? 1) - shiftWeight(slot.type));
-          empDayKey.delete(`${emp.id}:${dayKey}`);
-          if (WEEKEND_DAYS.includes(dayKey)) {
-            empWeekendCount[emp.id] = Math.max(0, (empWeekendCount[emp.id] ?? 1) - 1);
-          }
-          slot.employee = null;
-          slot.status   = null;
-          filled  = Math.max(0, filled - 1);
-          skipped = skipped + 1;
-        }
-      });
-    });
-  });
+  // Auto-schedule assigns at most ONE editor per shift — there is intentionally
+  // no second pass that fills employee2. A second editor can still be added
+  // manually (drag-and-drop). Employees left under their required shift count
+  // are surfaced by the sidebar (faint-red card) for manual handling.
 
   return { result, stats: { filled, skipped, lowCount } };
 }
