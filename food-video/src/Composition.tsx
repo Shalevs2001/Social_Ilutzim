@@ -2,6 +2,7 @@ import {
   AbsoluteFill,
   Composition,
   Easing,
+  Img,
   Interactive,
   interpolate,
   staticFile,
@@ -17,16 +18,16 @@ const FPS = 30;
 const CREAM = "#FFF4E0";
 
 type Food = {
-  emoji: string;
+  image: string;
   name: string;
   bg: string;
 };
 
 // Order of appearance; in RTL the first one sits on the right.
 const FOODS: Food[] = [
-  { emoji: "🍕", name: "פיצה", bg: "#C0392B" },
-  { emoji: "🍔", name: "המבורגר", bg: "#6D3B1E" },
-  { emoji: "🍣", name: "סושי", bg: "#1D3557" },
+  { image: "emoji/pizza.svg", name: "פיצה", bg: "#C0392B" },
+  { image: "emoji/hamburger.svg", name: "המבורגר", bg: "#6D3B1E" },
+  { image: "emoji/sushi.svg", name: "סושי", bg: "#1D3557" },
 ];
 
 // Timeline (frames)
@@ -42,7 +43,10 @@ const TO_ROW_END = TO_ROW_START + 25;
 const DURATION = TO_ROW_END + 60;
 
 // Layout: element box is BOX×BOX, positions are its center.
-const BOX = 400;
+// Images are laid out at their biggest (center) size and scaled down elsewhere,
+// so they stay sharp when shown big.
+const BOX = 560;
+const IMAGE = 510;
 const ROW_Y = 480;
 const rowX = (i: number) => 1460 - i * 500;
 const COLUMN_X = 1720;
@@ -87,31 +91,30 @@ const FoodItem: React.FC<{ food: Food; i: number }> = ({ food, i }) => {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        fontSize: 300,
-        lineHeight: 1,
         zIndex: frame >= s && frame < s + SPOT_LEN ? 2 : 1,
         translate: interpolate(frame, keys, [row, col, col, center, center, col, col, row], {
           ...clamp,
           easing: ease,
         }),
-        scale: interpolate(frame, keys, [1, 0.5, 0.5, 1.7, 1.7, 0.5, 0.5, 1], {
+        scale: interpolate(frame, keys, [0.6, 0.3, 0.3, 1, 1, 0.3, 0.3, 0.6], {
           ...clamp,
           easing: ease,
           output: "perceptual-scale",
         }),
       }}
     >
-      <div
+      <Img
+        src={staticFile(food.image)}
         style={{
+          width: IMAGE,
+          height: IMAGE,
           scale: interpolate(frame, [pop, pop + POP_LEN], [0, 1], {
             ...clamp,
             easing: Easing.spring({ damping: 10 }),
             output: "perceptual-scale",
           }),
         }}
-      >
-        {food.emoji}
-      </div>
+      />
     </Interactive.Div>
   );
 };

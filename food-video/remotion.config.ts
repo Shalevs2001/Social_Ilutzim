@@ -11,3 +11,7 @@ Config.setRspack(true);
 Config.setVideoImageFormat("jpeg");
 Config.setOverwriteOutput(true);
 Config.setDefaultPremountInSeconds(2);
+
+// Higher-quality output: lossless-ish frames and a low CRF.
+Config.setJpegQuality(100);
+Config.setCrf(16);
