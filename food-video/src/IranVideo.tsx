@@ -13,25 +13,25 @@ import { fontFamily } from "./fonts";
 
 // Illustrations only (no captions) on a transparent 16:9 frame, meant to be
 // placed over the lower part of a vertical talking-head video.
-const FPS = 30;
-const WIDTH = 1920;
-const HEIGHT = 1080;
+export const FPS = 30;
+export const WIDTH = 1920;
+export const HEIGHT = 1080;
 
-const NAVY = "#0B1426";
-const RED = "#E63946";
-const YELLOW = "#FFD60A";
-const BLUE = "#4EA8DE";
-const WHITE = "#FFFFFF";
-const GRAY = "#C9D1DE";
+export const NAVY = "#0B1426";
+export const RED = "#E63946";
+export const YELLOW = "#FFD60A";
+export const BLUE = "#4EA8DE";
+export const WHITE = "#FFFFFF";
+export const GRAY = "#C9D1DE";
 
-const clamp = {
+export const clamp = {
   extrapolateLeft: "clamp",
   extrapolateRight: "clamp",
 } as const;
-const outExpo = Easing.bezier(0.16, 1, 0.3, 1);
-const inOut = Easing.bezier(0.65, 0, 0.35, 1);
+export const outExpo = Easing.bezier(0.16, 1, 0.3, 1);
+export const inOut = Easing.bezier(0.65, 0, 0.35, 1);
 // Keeps graphics readable on top of any footage.
-const SHADOW = "drop-shadow(0 10px 24px rgba(0,0,0,0.45))";
+export const SHADOW = "drop-shadow(0 10px 24px rgba(0,0,0,0.45))";
 
 // Scene lengths follow the script's word count (~3.5 words/sec, 48s total).
 const SCENES = [
@@ -60,7 +60,7 @@ type Placed = {
   children: React.ReactNode;
 };
 
-const Pop: React.FC<Placed> = ({ at, name, x = 0, y = 0, style, children }) => {
+export const Pop: React.FC<Placed> = ({ at, name, x = 0, y = 0, style, children }) => {
   const frame = useCurrentFrame();
   return (
     <Interactive.Div
@@ -84,11 +84,11 @@ const Pop: React.FC<Placed> = ({ at, name, x = 0, y = 0, style, children }) => {
   );
 };
 
-const Emoji: React.FC<{ name: string; size: number }> = ({ name, size }) => (
+export const Emoji: React.FC<{ name: string; size: number }> = ({ name, size }) => (
   <Img src={staticFile(`emoji/${name}.svg`)} style={{ width: size, height: size, display: "block" }} />
 );
 
-const Person: React.FC<{ color: string; size?: number }> = ({ color, size = 1 }) => (
+export const Person: React.FC<{ color: string; size?: number }> = ({ color, size = 1 }) => (
   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 * size }}>
     <div style={{ width: 70 * size, height: 70 * size, borderRadius: "50%", backgroundColor: color }} />
     <div
@@ -131,7 +131,7 @@ const ReasonNumber: React.FC<{ n: number; star?: boolean }> = ({ n, star }) => (
   </Pop>
 );
 
-const Scene: React.FC<{ frames: number; children: React.ReactNode }> = ({ frames, children }) => {
+export const Scene: React.FC<{ frames: number; children: React.ReactNode }> = ({ frames, children }) => {
   const frame = useCurrentFrame();
   return (
     <AbsoluteFill style={{ opacity: interpolate(frame, [frames - 6, frames], [1, 0], clamp) }}>
@@ -646,12 +646,12 @@ export const IranGraphics: React.FC = () => {
   );
 };
 
-// Preview only: the graphics placed over the lower part of a vertical frame.
-const PREVIEW_W = 1080;
-const PREVIEW_H = 1920;
+// Preview only: 16:9 graphics placed over the lower part of a vertical frame.
+export const PREVIEW_W = 1080;
+export const PREVIEW_H = 1920;
 const PREVIEW_SCALE = PREVIEW_W / WIDTH;
 
-export const IranPreview: React.FC = () => (
+export const VerticalPreview: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <AbsoluteFill style={{ backgroundImage: "linear-gradient(180deg, #6B7280 0%, #374151 100%)", fontFamily }}>
     <AbsoluteFill style={{ alignItems: "center", paddingTop: 380, color: "rgba(255,255,255,0.45)", fontSize: 60 }}>
       <div style={{ width: 420, height: 520, borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.12)" }} />
@@ -669,9 +669,15 @@ export const IranPreview: React.FC = () => (
         outline: "4px dashed rgba(255,255,255,0.3)",
       }}
     >
-      <IranGraphics />
+      {children}
     </div>
   </AbsoluteFill>
+);
+
+const IranPreview: React.FC = () => (
+  <VerticalPreview>
+    <IranGraphics />
+  </VerticalPreview>
 );
 
 export const IranComposition = () => {
