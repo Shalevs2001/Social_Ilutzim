@@ -4,206 +4,186 @@ import {
   Easing,
   Interactive,
   interpolate,
-  Sequence,
+  staticFile,
   useCurrentFrame,
-  useVideoConfig,
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
-import { staticFile } from "remotion";
 
 const fontFamily = "Rubik";
 loadFont({ family: fontFamily, url: staticFile("fonts/Rubik-Medium.ttf"), weight: "500" });
 loadFont({ family: fontFamily, url: staticFile("fonts/Rubik-Black.ttf"), weight: "900" });
 
 const FPS = 30;
-const SCENE = 3 * FPS;
-const FINALE = 4 * FPS;
+const CREAM = "#FFF4E0";
 
 type Food = {
   emoji: string;
   name: string;
-  tagline: string;
   bg: string;
-  accent: string;
 };
 
+// Order of appearance; in RTL the first one sits on the right.
 const FOODS: Food[] = [
-  { emoji: "🍕", name: "פיצה", tagline: "משולש של אושר", bg: "#C0392B", accent: "#FFD166" },
-  { emoji: "🍔", name: "המבורגר", tagline: "עסיסי, כפול, מושלם", bg: "#6D3B1E", accent: "#F4A261" },
-  { emoji: "🍣", name: "סושי", tagline: "אורז, דג ואהבה", bg: "#1D3557", accent: "#F28482" },
+  { emoji: "🍕", name: "פיצה", bg: "#C0392B" },
+  { emoji: "🍔", name: "המבורגר", bg: "#6D3B1E" },
+  { emoji: "🍣", name: "סושי", bg: "#1D3557" },
 ];
+
+// Timeline (frames)
+const POP_GAP = 12; // delay between items popping in
+const POP_LEN = 18;
+const TO_COLUMN_START = 60;
+const TO_COLUMN_END = 85;
+const SPOT_START = 100; // first item flies to center
+const SPOT_LEN = 70; // in + hold + out
+const SPOT_MOVE = 18;
+const TO_ROW_START = SPOT_START + FOODS.length * SPOT_LEN + 10;
+const TO_ROW_END = TO_ROW_START + 25;
+const DURATION = TO_ROW_END + 60;
+
+// Layout: element box is BOX×BOX, positions are its center.
+const BOX = 400;
+const ROW_Y = 480;
+const rowX = (i: number) => 1460 - i * 500;
+const COLUMN_X = 1720;
+const columnY = (i: number) => 270 + i * 270;
+const CENTER = { x: 960, y: 440 };
+
+const at = (x: number, y: number) => `${x - BOX / 2}px ${y - BOX / 2}px`;
 
 const clamp = {
   extrapolateLeft: "clamp",
   extrapolateRight: "clamp",
 } as const;
+const ease = Easing.bezier(0.65, 0, 0.35, 1);
 
-const FoodScene: React.FC<{ food: Food }> = ({ food }) => {
+const FoodItem: React.FC<{ food: Food; i: number }> = ({ food, i }) => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
+  const pop = i * POP_GAP;
+  const s = SPOT_START + i * SPOT_LEN;
+  const keys = [
+    TO_COLUMN_START,
+    TO_COLUMN_END,
+    s,
+    s + SPOT_MOVE,
+    s + SPOT_LEN - SPOT_MOVE,
+    s + SPOT_LEN,
+    TO_ROW_START,
+    TO_ROW_END,
+  ];
+  const row = at(rowX(i), ROW_Y);
+  const col = at(COLUMN_X, columnY(i));
+  const center = at(CENTER.x, CENTER.y);
 
   return (
-    <AbsoluteFill
+    <Interactive.Div
+      name={food.name}
       style={{
-        backgroundColor: food.bg,
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: BOX,
+        height: BOX,
+        display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        fontFamily,
-        direction: "rtl",
-        opacity: interpolate(frame, [durationInFrames - 8, durationInFrames], [1, 0], clamp),
+        fontSize: 300,
+        lineHeight: 1,
+        zIndex: frame >= s && frame < s + SPOT_LEN ? 2 : 1,
+        translate: interpolate(frame, keys, [row, col, col, center, center, col, col, row], {
+          ...clamp,
+          easing: ease,
+        }),
+        scale: interpolate(frame, keys, [1, 0.5, 0.5, 1.7, 1.7, 0.5, 0.5, 1], {
+          ...clamp,
+          easing: ease,
+          output: "perceptual-scale",
+        }),
       }}
     >
-      <Interactive.Div
-        name="Glow"
+      <div
         style={{
-          position: "absolute",
-          width: 900,
-          height: 900,
-          borderRadius: "50%",
-          backgroundColor: food.accent,
-          opacity: 0.18,
-          scale: interpolate(frame, [0, durationInFrames], [0.6, 1.15], {
+          scale: interpolate(frame, [pop, pop + POP_LEN], [0, 1], {
             ...clamp,
+            easing: Easing.spring({ damping: 10 }),
             output: "perceptual-scale",
-          }),
-        }}
-      />
-      <Interactive.Div
-        name="Emoji"
-        style={{
-          fontSize: 380,
-          lineHeight: 1,
-          scale: interpolate(frame, [0, 0.6 * fps], [0, 1], {
-            ...clamp,
-            easing: Easing.spring({ damping: 12 }),
-            output: "perceptual-scale",
-          }),
-          rotate: interpolate(frame, [0, 0.6 * fps, durationInFrames], ["-40deg", "0deg", "8deg"], {
-            ...clamp,
-            easing: [Easing.bezier(0.16, 1, 0.3, 1), Easing.linear],
           }),
         }}
       >
         {food.emoji}
-      </Interactive.Div>
-      <Interactive.Div
-        name="Name"
-        style={{
-          marginTop: 30,
-          fontSize: 150,
-          fontWeight: 900,
-          color: "white",
-          opacity: interpolate(frame, [0.4 * fps, 0.9 * fps], [0, 1], clamp),
-          translate: interpolate(frame, [0.4 * fps, 0.9 * fps], ["0px 80px", "0px 0px"], {
-            ...clamp,
-            easing: Easing.bezier(0.16, 1, 0.3, 1),
-          }),
-        }}
-      >
-        {food.name}
-      </Interactive.Div>
-      <Interactive.Div
-        name="Tagline"
-        style={{
-          fontSize: 56,
-          fontWeight: 500,
-          color: food.accent,
-          opacity: interpolate(frame, [0.9 * fps, 1.4 * fps], [0, 1], clamp),
-          translate: interpolate(frame, [0.9 * fps, 1.4 * fps], ["0px 40px", "0px 0px"], {
-            ...clamp,
-            easing: Easing.bezier(0.16, 1, 0.3, 1),
-          }),
-        }}
-      >
-        {food.tagline}
-      </Interactive.Div>
-    </AbsoluteFill>
+      </div>
+    </Interactive.Div>
   );
 };
 
-const Finale: React.FC = () => {
+export const FoodVideo: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
   return (
-    <AbsoluteFill
-      style={{
-        backgroundColor: "#FFF4E0",
-        justifyContent: "center",
-        alignItems: "center",
-        fontFamily,
-        direction: "rtl",
-      }}
-    >
-      <div style={{ display: "flex", gap: 80 }}>
-        {FOODS.map((food, i) => (
-          <Interactive.Div
-            key={food.name}
-            name={`Finale ${food.name}`}
-            style={{
-              fontSize: 260,
-              lineHeight: 1,
-              scale: interpolate(frame, [i * 6, i * 6 + 0.6 * fps], [0, 1], {
-                ...clamp,
-                easing: Easing.spring({ damping: 10 }),
-                output: "perceptual-scale",
-              }),
-              translate: interpolate(
-                frame,
-                [1.5 * fps, 2.25 * fps, 3 * fps, 3.75 * fps],
-                ["0px 0px", "0px -30px", "0px 0px", "0px -30px"],
-                { ...clamp, easing: Easing.inOut(Easing.sin) },
-              ),
-            }}
-          >
-            {food.emoji}
-          </Interactive.Div>
-        ))}
-      </div>
+    <AbsoluteFill style={{ backgroundColor: CREAM, fontFamily, direction: "rtl" }}>
+      {FOODS.map((food, i) => {
+        const s = SPOT_START + i * SPOT_LEN;
+        return (
+          <AbsoluteFill key={food.name}>
+            <Interactive.Div
+              name={`${food.name} Background`}
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: food.bg,
+                opacity: interpolate(frame, [s, s + SPOT_MOVE, s + SPOT_LEN - SPOT_MOVE, s + SPOT_LEN], [0, 1, 1, 0], {
+                  ...clamp,
+                  easing: ease,
+                }),
+              }}
+            />
+            <Interactive.Div
+              name={`${food.name} Title`}
+              style={{
+                position: "absolute",
+                top: 790,
+                left: 0,
+                right: 0,
+                textAlign: "center",
+                fontSize: 130,
+                fontWeight: 900,
+                color: "white",
+                zIndex: 3,
+                opacity: interpolate(frame, [s + 12, s + 22, s + 46, s + 56], [0, 1, 1, 0], clamp),
+                translate: interpolate(frame, [s + 12, s + 22], ["0px 60px", "0px 0px"], {
+                  ...clamp,
+                  easing: Easing.bezier(0.16, 1, 0.3, 1),
+                }),
+              }}
+            >
+              {food.name}
+            </Interactive.Div>
+          </AbsoluteFill>
+        );
+      })}
+      {FOODS.map((food, i) => (
+        <FoodItem key={food.name} food={food} i={i} />
+      ))}
       <Interactive.Div
-        name="Finale Title"
+        name="Final Title"
         style={{
-          marginTop: 60,
-          fontSize: 120,
+          position: "absolute",
+          top: 790,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: 110,
           fontWeight: 900,
           color: "#2B2D42",
-          opacity: interpolate(frame, [0.8 * fps, 1.3 * fps], [0, 1], clamp),
-          scale: interpolate(frame, [0.8 * fps, 1.3 * fps], [0.8, 1], {
+          opacity: interpolate(frame, [TO_ROW_END - 5, TO_ROW_END + 10], [0, 1], clamp),
+          translate: interpolate(frame, [TO_ROW_END - 5, TO_ROW_END + 10], ["0px 50px", "0px 0px"], {
             ...clamp,
             easing: Easing.bezier(0.16, 1, 0.3, 1),
-            output: "perceptual-scale",
           }),
         }}
       >
         פיצה, המבורגר וסושי
       </Interactive.Div>
-      <Interactive.Div
-        name="Finale Subtitle"
-        style={{
-          marginTop: 10,
-          fontSize: 56,
-          fontWeight: 500,
-          color: "#C0392B",
-          opacity: interpolate(frame, [1.4 * fps, 1.9 * fps], [0, 1], clamp),
-        }}
-      >
-        למה לבחור? 😋
-      </Interactive.Div>
-    </AbsoluteFill>
-  );
-};
-
-export const FoodVideo: React.FC = () => {
-  return (
-    <AbsoluteFill style={{ backgroundColor: "black" }}>
-      {FOODS.map((food, i) => (
-        <Sequence key={food.name} name={food.name} from={i * SCENE} durationInFrames={SCENE}>
-          <FoodScene food={food} />
-        </Sequence>
-      ))}
-      <Sequence name="Finale" from={FOODS.length * SCENE} durationInFrames={FINALE}>
-        <Finale />
-      </Sequence>
     </AbsoluteFill>
   );
 };
@@ -213,7 +193,7 @@ export const MyComposition = () => {
     <Composition
       id="FoodVideo"
       component={FoodVideo}
-      durationInFrames={FOODS.length * SCENE + FINALE}
+      durationInFrames={DURATION}
       fps={FPS}
       width={1920}
       height={1080}
