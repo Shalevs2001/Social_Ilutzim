@@ -12,6 +12,6 @@ Config.setVideoImageFormat("jpeg");
 Config.setOverwriteOutput(true);
 Config.setDefaultPremountInSeconds(2);
 
-// Higher-quality output: lossless-ish frames and a low CRF.
+// Higher-quality output. (No global CRF: ProRes renders for transparent
+// overlays reject it — pass --crf on the command line for H.264 instead.)
 Config.setJpegQuality(100);
-Config.setCrf(16);
