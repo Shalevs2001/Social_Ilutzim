@@ -30,8 +30,17 @@ export const clamp = {
 } as const;
 export const outExpo = Easing.bezier(0.16, 1, 0.3, 1);
 export const inOut = Easing.bezier(0.65, 0, 0.35, 1);
+// Green-screen mode, for editors that can't read alpha (e.g. Instagram Edits):
+// a solid key-green background and no soft shadows/glows, which would leave
+// dark fringes after keying. Set once per frame by the top-level component.
+export const KEY_GREEN = "#00FF00";
+let chromaMode = false;
+export const setChromaMode = (on: boolean) => {
+  chromaMode = on;
+};
+export const isChroma = () => chromaMode;
 // Keeps graphics readable on top of any footage.
-export const SHADOW = "drop-shadow(0 10px 24px rgba(0,0,0,0.45))";
+export const shadow = () => (chromaMode ? "none" : "drop-shadow(0 10px 24px rgba(0,0,0,0.45))");
 
 // Scene lengths follow the script's word count (~3.5 words/sec, 48s total).
 const SCENES = [
@@ -70,7 +79,7 @@ export const Pop: React.FC<Placed> = ({ at, name, x = 0, y = 0, style, children 
         left: "50%",
         top: "50%",
         translate: `calc(-50% + ${x}px) calc(-50% + ${y}px)`,
-        filter: SHADOW,
+        filter: shadow(),
         ...style,
         scale: interpolate(frame, [at, at + 18], [0, 1], {
           ...clamp,
@@ -159,7 +168,7 @@ const Hook: React.FC<{ frames: number }> = ({ frames }) => {
           position: "absolute",
           left: "50%",
           top: 150,
-          filter: SHADOW,
+          filter: shadow(),
           rotate: "-135deg",
           translate: interpolate(frame, [0, 40], ["900px 0px", "-1300px 60px"], { ...clamp, easing: inOut }),
         }}
@@ -177,7 +186,7 @@ const Maybe: React.FC<{ frames: number }> = ({ frames }) => {
     <Scene frames={frames}>
       <svg
         viewBox="0 0 1000 500"
-        style={{ position: "absolute", left: 360, top: 200, width: 1200, height: 600, filter: SHADOW, overflow: "visible" }}
+        style={{ position: "absolute", left: 360, top: 200, width: 1200, height: 600, filter: shadow(), overflow: "visible" }}
       >
         <path d="M0 500 H1000 M0 500 V0" stroke={WHITE} strokeWidth={10} strokeLinecap="round" opacity={0.7} />
         <polyline
@@ -259,7 +268,7 @@ const Reason1: React.FC<{ frames: number }> = ({ frames }) => {
           display: "flex",
           alignItems: "flex-end",
           gap: 40,
-          filter: SHADOW,
+          filter: shadow(),
           direction: "ltr", // time runs left to right, like the line chart
         }}
       >
@@ -474,7 +483,7 @@ const GallantNight: React.FC<{ frames: number }> = ({ frames }) => {
       <AbsoluteFill
         style={{
           background: `radial-gradient(circle, ${RED} 0%, transparent 65%)`,
-          opacity: interpolate(frame, [0, 15], [0, 1], clamp) * (0.35 + 0.25 * Math.sin(frame / 3)),
+          opacity: isChroma() ? 0 : interpolate(frame, [0, 15], [0, 1], clamp) * (0.35 + 0.25 * Math.sin(frame / 3)),
         }}
       />
       <Pop at={0} name="Siren" y={-60}>
@@ -496,7 +505,7 @@ const GallantNight: React.FC<{ frames: number }> = ({ frames }) => {
           position: "absolute",
           left: "50%",
           top: "50%",
-          filter: SHADOW,
+          filter: shadow(),
           opacity: interpolate(frame, [125, 135], [0, 1], clamp),
           translate: interpolate(frame, [125, 175], ["420px 200px", "-60px 200px"], { ...clamp, easing: outExpo }),
         }}
@@ -547,7 +556,7 @@ const BallotBox: React.FC<{ frames: number }> = ({ frames }) => {
           width: 140,
           borderRadius: "20px 20px 0 0",
           backgroundColor: YELLOW,
-          filter: SHADOW,
+          filter: shadow(),
           height: interpolate(frame, [100, 135], [0, 380], { ...clamp, easing: outExpo }),
         }}
       />
@@ -628,10 +637,11 @@ const SCENE_COMPONENTS: React.FC<{ frames: number }>[] = [
 
 /* ---------- main ---------- */
 
-export const IranGraphics: React.FC = () => {
+export const IranGraphics: React.FC<{ chroma?: boolean }> = ({ chroma = false }) => {
+  setChromaMode(chroma);
   let from = 0;
   return (
-    <AbsoluteFill style={{ fontFamily, direction: "rtl" }}>
+    <AbsoluteFill style={{ fontFamily, direction: "rtl", backgroundColor: chroma ? KEY_GREEN : undefined }}>
       {SCENES.map((scene, i) => {
         const Component = SCENE_COMPONENTS[i];
         const start = from;
@@ -686,6 +696,15 @@ export const IranComposition = () => {
       <Composition
         id="IranElections"
         component={IranGraphics}
+        durationInFrames={DURATION}
+        fps={FPS}
+        width={WIDTH}
+        height={HEIGHT}
+      />
+      <Composition
+        id="IranElectionsGreen"
+        component={IranGraphics}
+        defaultProps={{ chroma: true }}
         durationInFrames={DURATION}
         fps={FPS}
         width={WIDTH}

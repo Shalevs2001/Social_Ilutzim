@@ -15,7 +15,10 @@ import {
   PREVIEW_W,
   RED,
   Scene,
-  SHADOW,
+  isChroma,
+  KEY_GREEN,
+  setChromaMode,
+  shadow,
   VerticalPreview,
   WHITE,
   WIDTH,
@@ -23,7 +26,8 @@ import {
 } from "./IranVideo";
 
 // "Two ballots" election-reform pitch: illustrations only, transparent 16:9.
-const GREEN = "#2DC653";
+// The "green slip" turns a deeper green on the green-screen version so it isn't keyed out.
+const green = () => (isChroma() ? "#127A55" : "#2DC653");
 
 // Scene lengths follow the script's word count (~3.4 words/sec, 40s total).
 const SCENES = [
@@ -135,7 +139,7 @@ const FlyingSlip: React.FC<{
         left: interpolate(frame, keys, xs, { ...clamp, easing: inOut }),
         top: interpolate(frame, keys, ys, { ...clamp, easing: inOut }),
         translate: "-50% -50%",
-        filter: SHADOW,
+        filter: shadow(),
         opacity: opacity ? interpolate(frame, keys, opacity, clamp) : 1,
         scale: interpolate(frame, keys, scales, { ...clamp, easing: inOut, output: "perceptual-scale" }),
       }}
@@ -163,7 +167,7 @@ const ChartFrame: React.FC = () => {
           height: 12,
           borderRadius: 6,
           backgroundColor: WHITE,
-          filter: SHADOW,
+          filter: shadow(),
         }}
       />
       <Interactive.Div
@@ -174,7 +178,7 @@ const ChartFrame: React.FC = () => {
           top: CHART.baseline - CHART.threshold,
           width,
           borderTop: `10px dashed ${YELLOW}`,
-          filter: SHADOW,
+          filter: shadow(),
         }}
       />
     </>
@@ -192,7 +196,7 @@ const Bar: React.FC<{ name: string; x: number; color: string; height: number }> 
       height,
       borderRadius: "24px 24px 0 0",
       backgroundColor: color,
-      filter: SHADOW,
+      filter: shadow(),
     }}
   />
 );
@@ -217,6 +221,14 @@ const CrossOut: React.FC<{ at: number; size: number }> = ({ at, size }) => {
   );
 };
 
+// Yellow check badge (instead of the green ✅ emoji, which a green screen would key out).
+const CheckBadge: React.FC<{ size: number }> = ({ size }) => (
+  <svg viewBox="0 0 100 100" style={{ width: size, height: size, display: "block" }}>
+    <circle cx={50} cy={50} r={46} fill={YELLOW} stroke={WHITE} strokeWidth={5} />
+    <path d="M27 52 L44 68 L74 34" fill="none" stroke={NAVY} strokeWidth={11} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 /* ---------- scenes ---------- */
 
 // "I have an idea that fixes one of the most annoying problems in our system."
@@ -234,7 +246,7 @@ const Idea: React.FC<{ frames: number }> = ({ frames }) => {
             inset: -120,
             borderRadius: "50%",
             background: `radial-gradient(circle, ${YELLOW} 0%, transparent 65%)`,
-            opacity: 0.45 + 0.2 * Math.sin(frame / 5),
+            opacity: isChroma() ? 0 : 0.45 + 0.2 * Math.sin(frame / 5),
           }}
         />
         <Emoji name="bulb" size={320} />
@@ -253,7 +265,7 @@ const OneToTwo: React.FC<{ frames: number }> = ({ frames }) => (
   <Scene frames={frames}>
     <FlyingSlip
       name="Green slip"
-      color={GREEN}
+      color={green()}
       keys={[18, 40]}
       xs={[960, 700]}
       ys={[540, 540]}
@@ -285,7 +297,7 @@ const GreenSlip: React.FC<{ frames: number }> = ({ frames }) => {
           left: interpolate(frame, [0, 20], [960, 1280], { ...clamp, easing: inOut }),
           top: 540,
           translate: "-50% -50%",
-          filter: SHADOW,
+          filter: shadow(),
           scale: interpolate(frame, [0, 20], [1, 0.8], { ...clamp, easing: inOut, output: "perceptual-scale" }),
         }}
       >
@@ -298,11 +310,11 @@ const GreenSlip: React.FC<{ frames: number }> = ({ frames }) => {
           left: interpolate(frame, [12, 36], [60, 640], { ...clamp, easing: outExpo }),
           top: 540,
           translate: "-50% -50%",
-          filter: SHADOW,
+          filter: shadow(),
           opacity: interpolate(frame, [12, 20], [0, 1], clamp),
         }}
       >
-        <Slip color={GREEN} n={2} width={340} check={42} />
+        <Slip color={green()} n={2} width={340} check={42} />
       </Interactive.Div>
     </Scene>
   );
@@ -326,7 +338,7 @@ const FirstPasses: React.FC<{ frames: number }> = ({ frames }) => {
         opacity={[1, 1, 1, 0]}
       />
       <Pop at={74} name="Passed" x={BAR_X[0] - 960} y={-180}>
-        <Emoji name="check" size={190} />
+        <CheckBadge size={190} />
       </Pop>
     </Scene>
   );
@@ -339,13 +351,13 @@ const FirstFails: React.FC<{ frames: number }> = ({ frames }) => {
     <Scene frames={frames}>
       <ChartFrame />
       <Bar name="Party 1" x={BAR_X[0]} color={WHITE} height={interpolate(frame, [10, 40], [0, 170], { ...clamp, easing: outExpo })} />
-      <Bar name="Party 2" x={BAR_X[1]} color={GREEN} height={interpolate(frame, [10, 40], [0, 360], { ...clamp, easing: outExpo })} />
+      <Bar name="Party 2" x={BAR_X[1]} color={green()} height={interpolate(frame, [10, 40], [0, 360], { ...clamp, easing: outExpo })} />
       <Pop at={44} name="Failed" x={BAR_X[0] - 960} y={60}>
         <Emoji name="cross" size={170} />
       </Pop>
       <FlyingSlip
         name="Green slip"
-        color={GREEN}
+        color={green()}
         n={2}
         keys={[52, 62, 88, 96]}
         xs={[1700, 1700, BAR_X[1], BAR_X[1]]}
@@ -354,7 +366,7 @@ const FirstFails: React.FC<{ frames: number }> = ({ frames }) => {
         opacity={[1, 1, 1, 0]}
       />
       <Pop at={96} name="Counted" x={BAR_X[1] - 960} y={-250}>
-        <Emoji name="check" size={190} />
+        <CheckBadge size={190} />
       </Pop>
     </Scene>
   );
@@ -393,11 +405,11 @@ const NoWastedVotes: React.FC<{ frames: number }> = ({ frames }) => {
             top: interpolate(frame, [d.at, d.at + 22], [-180, 560], { ...clamp, easing: Easing2 }),
             translate: "-50% -50%",
             rotate: `${(i % 2 ? 1 : -1) * (15 + i * 4)}deg`,
-            filter: SHADOW,
+            filter: shadow(),
             opacity: interpolate(frame, [d.at + 18, d.at + 24], [1, 0], clamp),
           }}
         >
-          <Slip color={i % 3 === 0 ? GREEN : WHITE} width={110} />
+          <Slip color={i % 3 === 0 ? green() : WHITE} width={110} />
         </Interactive.Div>
       ))}
       <Pop at={0} name="Trash" y={200}>
@@ -425,11 +437,11 @@ const NoStrategic: React.FC<{ frames: number }> = ({ frames }) => {
       </Pop>
       <Pop at={95} name="Green slip" x={560} y={60}>
         <div style={{ rotate: `${8 + Math.sin(frame / 10) * 4}deg` }}>
-          <Slip color={GREEN} n={2} width={200} />
+          <Slip color={green()} n={2} width={200} />
         </div>
       </Pop>
       <Pop at={130} name="Covered" x={420} y={-300}>
-        <Emoji name="check" size={170} />
+        <CheckBadge size={170} />
       </Pop>
     </Scene>
   );
@@ -439,7 +451,7 @@ const NoStrategic: React.FC<{ frames: number }> = ({ frames }) => {
 const Stability: React.FC<{ frames: number }> = ({ frames }) => {
   const frame = useCurrentFrame();
   const minis = [90, 140, 60, 120, 80, 150, 70, 110, 95, 130, 65, 105];
-  const colors = [RED, BLUE, YELLOW, GREEN, WHITE];
+  const colors = [RED, BLUE, YELLOW, green(), WHITE];
   return (
     <Scene frames={frames}>
       <AbsoluteFill
@@ -460,7 +472,7 @@ const Stability: React.FC<{ frames: number }> = ({ frames }) => {
               height: interpolate(frame, [i * 3, i * 3 + 12], [0, h], { ...clamp, easing: outExpo }),
               borderRadius: "14px 14px 0 0",
               backgroundColor: colors[i % colors.length],
-              filter: SHADOW,
+              filter: shadow(),
               translate: `0px ${Math.sin(frame / 2 + i) * 8}px`,
             }}
           />
@@ -470,7 +482,7 @@ const Stability: React.FC<{ frames: number }> = ({ frames }) => {
         <Emoji name="capitol" size={420} />
       </Pop>
       <Pop at={98} name="Stable check" x={300} y={-220}>
-        <Emoji name="check" size={170} />
+        <CheckBadge size={170} />
       </Pop>
     </Scene>
   );
@@ -533,10 +545,11 @@ const SCENE_COMPONENTS: React.FC<{ frames: number }>[] = [
 
 /* ---------- main ---------- */
 
-export const BallotGraphics: React.FC = () => {
+export const BallotGraphics: React.FC<{ chroma?: boolean }> = ({ chroma = false }) => {
+  setChromaMode(chroma);
   let from = 0;
   return (
-    <AbsoluteFill style={{ fontFamily, direction: "rtl" }}>
+    <AbsoluteFill style={{ fontFamily, direction: "rtl", backgroundColor: chroma ? KEY_GREEN : undefined }}>
       {SCENES.map((scene, i) => {
         const Component = SCENE_COMPONENTS[i];
         const start = from;
@@ -560,6 +573,15 @@ const BallotPreview: React.FC = () => (
 export const BallotComposition = () => (
   <>
     <Composition id="TwoBallots" component={BallotGraphics} durationInFrames={DURATION} fps={FPS} width={WIDTH} height={HEIGHT} />
+    <Composition
+      id="TwoBallotsGreen"
+      component={BallotGraphics}
+      defaultProps={{ chroma: true }}
+      durationInFrames={DURATION}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+    />
     <Composition
       id="TwoBallotsPreview"
       component={BallotPreview}
