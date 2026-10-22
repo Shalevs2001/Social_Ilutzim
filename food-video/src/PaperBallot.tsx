@@ -413,21 +413,22 @@ const IdeaScene: React.FC = () => {
   const frame = useStep();
   return (
     <Window from={0} to={3.0}>
-      <Piece at={0.4} x={620} y={520} rotate={-6} seed={21}>
+      {/* Both pieces are already on the table at frame 0; the bulb lights up on "רעיון". */}
+      <Piece at={-0.4} x={620} y={520} rotate={-6} seed={21}>
         <div style={{ position: "relative", width: 260, height: 340 }}>
-          {frame >= s(0.8)
+          {frame >= s(0.4)
             ? [0, 45, 90, 135, 180].map((a) => {
                 const r = ((a + 180) * Math.PI) / 180;
                 return <Strip key={a} x={130 + Math.cos(r) * 190} y={130 + Math.sin(r) * 190} len={70} thick={22} angle={a} color={MUSTARD} />;
               })
             : null}
-          <Cutout color={MUSTARD} style={{ width: 260, height: 260, borderRadius: "50%" }} />
+          <Cutout color={frame >= s(0.4) ? MUSTARD : "#D3C9B6"} style={{ width: 260, height: 260, borderRadius: "50%" }} />
           <div style={{ position: "absolute", left: 75, top: 240 }}>
             <Cutout color={GREY} style={{ width: 110, height: 90, borderRadius: 10 }} />
           </div>
         </div>
       </Piece>
-      <Piece at={1.8} x={1280} y={560} rotate={4} seed={22}>
+      <Piece at={-0.4} x={1280} y={560} rotate={4} seed={22}>
         <BallotBox />
       </Piece>
       {/* "a fix": a strip of tape slapped across the box */}
