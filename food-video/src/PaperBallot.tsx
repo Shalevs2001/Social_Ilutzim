@@ -480,8 +480,9 @@ const NoWastedScene: React.FC = () => {
   const frame = useStep();
   const shift = interpolate(frame, [s(21.3), s(21.7)], [0, -360], { ...clamp, easing: smooth });
   const drops = [-110, 60, -20, 120, -70, 20];
-  // Meretz (150,696) + Balad (138,617), both below the threshold in 2022.
-  const count = Math.round(interpolate(frame, [s(21.6), s(22.5)], [0, 289313], { ...clamp, easing: smooth }));
+  // A running counter that never settles on a final number while it's on screen.
+  const elapsed = Math.max(0, frame - s(21.6)) / FPS;
+  const count = Math.floor(elapsed * 260000 + Math.abs(jitter(frame, 7, 997)));
   return (
     <Window from={18.8} to={22.8}>
       <AbsoluteFill style={{ translate: `${shift}px 0px` }}>
