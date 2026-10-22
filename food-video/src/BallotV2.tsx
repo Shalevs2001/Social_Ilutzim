@@ -11,6 +11,7 @@ import {
   staticFile,
   useCurrentFrame,
 } from "remotion";
+import { Ballot3D } from "./Ballot3D";
 import { fontFamily } from "./fonts";
 import { clamp, FPS, HEIGHT, inOut, outExpo, Person, WIDTH } from "./IranVideo";
 
@@ -710,20 +711,30 @@ const SCENE_COMPONENTS: React.FC<SceneProps>[] = [
 
 /* ---------- compositions ---------- */
 
-export const BallotCard: React.FC<{ backdrop?: boolean }> = ({ backdrop = true }) => (
+// The 3D version replaces the slips + threshold chart (3.0s – 17.8s).
+const THREE_D = { from: 3.0, to: 17.8 };
+
+export const BallotCard: React.FC<{ backdrop?: boolean; threeD?: boolean }> = ({ backdrop = true, threeD = false }) => (
   <AbsoluteFill style={{ fontFamily, direction: "rtl", overflow: "hidden" }}>
     {backdrop ? <Backdrop /> : null}
     {SCENES.map((scene, i) => {
       const Component = SCENE_COMPONENTS[i];
+      if (threeD && Component === ThresholdChart) return null;
       return (
         <Sequence key={scene.name} name={scene.name} from={s(scene.from)} durationInFrames={s(scene.to) - s(scene.from)}>
           <Component start={scene.from} end={scene.to} />
         </Sequence>
       );
     })}
-    <Sequence name="Ballot slips" from={0} durationInFrames={s(17.8)}>
-      <SlipLayer />
-    </Sequence>
+    {threeD ? (
+      <Sequence name="3D slips and chart" from={s(THREE_D.from)} durationInFrames={s(THREE_D.to) - s(THREE_D.from)}>
+        <Ballot3D offsetFrames={s(THREE_D.from)} endSec={THREE_D.to} />
+      </Sequence>
+    ) : (
+      <Sequence name="Ballot slips" from={0} durationInFrames={s(17.8)}>
+        <SlipLayer />
+      </Sequence>
+    )}
   </AbsoluteFill>
 );
 
@@ -736,7 +747,7 @@ const CARD_TOP = 1240;
 const CARD_SCALE = OUT_W / WIDTH;
 const CARD_CANVAS_H = (OUT_H - CARD_TOP) / CARD_SCALE;
 
-export const BallotFinal: React.FC = () => (
+export const BallotFinal: React.FC<{ threeD?: boolean }> = ({ threeD = false }) => (
   <AbsoluteFill style={{ backgroundColor: "black" }}>
     <OffthreadVideo src={staticFile("input/ballot-source.mp4")} style={{ width: OUT_W, height: OUT_H, objectFit: "cover" }} />
     <div
@@ -756,7 +767,7 @@ export const BallotFinal: React.FC = () => (
     >
       <Backdrop />
       <div style={{ position: "absolute", left: 0, top: (CARD_CANVAS_H - HEIGHT) / 2, width: WIDTH, height: HEIGHT }}>
-        <BallotCard backdrop={false} />
+        <BallotCard backdrop={false} threeD={threeD} />
       </div>
     </div>
   </AbsoluteFill>
@@ -766,5 +777,23 @@ export const BallotV2Composition = () => (
   <>
     <Composition id="TwoBallotsV2Card" component={BallotCard} durationInFrames={DURATION} fps={FPS} width={WIDTH} height={HEIGHT} />
     <Composition id="TwoBallotsV2Final" component={BallotFinal} durationInFrames={DURATION} fps={FPS} width={OUT_W} height={OUT_H} />
+    <Composition
+      id="TwoBallots3DCard"
+      component={BallotCard}
+      defaultProps={{ threeD: true }}
+      durationInFrames={DURATION}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+    />
+    <Composition
+      id="TwoBallots3DFinal"
+      component={BallotFinal}
+      defaultProps={{ threeD: true }}
+      durationInFrames={DURATION}
+      fps={FPS}
+      width={OUT_W}
+      height={OUT_H}
+    />
   </>
 );
