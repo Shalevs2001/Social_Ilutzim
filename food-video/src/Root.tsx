@@ -3,6 +3,7 @@ import { BallotV2Composition } from "./BallotV2";
 import { MyComposition } from "./Composition";
 import { IranComposition } from "./IranVideo";
 import { PaperComposition } from "./PaperBallot";
+import { SatireComposition } from "./PaperSatire";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -12,6 +13,7 @@ export const RemotionRoot: React.FC = () => {
       <BallotComposition />
       <BallotV2Composition />
       <PaperComposition />
+      <SatireComposition />
     </>
   );
 };

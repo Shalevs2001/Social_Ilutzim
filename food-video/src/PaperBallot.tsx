@@ -6,36 +6,36 @@ import { clamp, FPS, HEIGHT, WIDTH } from "./IranVideo";
 // Two-ballots pitch in a warm paper-cutout style: cut-paper shapes with
 // rough edges, masking tape, paper-strip marks and stop-motion timing (on twos).
 
-const handFamily = "Amatic SC";
+export const handFamily = "Amatic SC";
 loadFont({ family: handFamily, url: staticFile("fonts/AmaticSC-Bold.ttf"), weight: "700" });
 
-const CREAM = "#EFE4CC";
-const INK = "#1D2B4F";
-const RED = "#D9412E";
-const MUSTARD = "#E8B43A";
-const PAPER_WHITE = "#FBF8F1";
+export const CREAM = "#EFE4CC";
+export const INK = "#1D2B4F";
+export const RED = "#D9412E";
+export const MUSTARD = "#E8B43A";
+export const PAPER_WHITE = "#FBF8F1";
 const PAPER_GREEN = "#5DAE5B";
 const KRAFT = "#B98A5A";
 
-const s = (sec: number) => Math.round(sec * FPS);
+export const s = (sec: number) => Math.round(sec * FPS);
 const smooth = Easing.bezier(0.65, 0, 0.35, 1);
-const outBack = Easing.bezier(0.34, 1.56, 0.64, 1);
+export const outBack = Easing.bezier(0.34, 1.56, 0.64, 1);
 
 // Stop-motion: hold every pose for two frames.
-const useStep = () => Math.floor(useCurrentFrame() / 2) * 2;
+export const useStep = () => Math.floor(useCurrentFrame() / 2) * 2;
 // Small deterministic wobble that changes every 4 frames, like hand-placed paper.
-const jitter = (frame: number, seed: number, amount = 1) => {
+export const jitter = (frame: number, seed: number, amount = 1) => {
   const n = Math.sin((Math.floor(frame / 4) + 1) * 12.9898 + seed * 78.233) * 43758.5453;
   return (n - Math.floor(n) - 0.5) * 2 * amount;
 };
 
 /* ---------- textures & filters ---------- */
 
-const NOISE =
+export const NOISE =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.28  0 0 0 0 0.2  0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
 
 // SVG filters referenced by CSS: rough cut edges and torn edges.
-const PaperFilters: React.FC = () => (
+export const PaperFilters: React.FC = () => (
   <svg width={0} height={0} style={{ position: "absolute" }}>
     <filter id="rough-cut">
       <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves={3} seed={4} result="noise" />
@@ -48,7 +48,7 @@ const PaperFilters: React.FC = () => (
   </svg>
 );
 
-const PaperBackdrop: React.FC = () => (
+export const PaperBackdrop: React.FC = () => (
   <AbsoluteFill>
     <AbsoluteFill style={{ backgroundColor: CREAM }} />
     <AbsoluteFill style={{ backgroundImage: NOISE, opacity: 0.55, mixBlendMode: "multiply" }} />
@@ -57,7 +57,7 @@ const PaperBackdrop: React.FC = () => (
 );
 
 // A piece of cut paper: rough edges, paper grain, and a soft drop shadow.
-const Cutout: React.FC<{ color: string; style?: React.CSSProperties; children?: React.ReactNode; edge?: string }> = ({
+export const Cutout: React.FC<{ color: string; style?: React.CSSProperties; children?: React.ReactNode; edge?: string }> = ({
   color,
   style,
   children,
@@ -79,7 +79,7 @@ const Cutout: React.FC<{ color: string; style?: React.CSSProperties; children?: 
   </div>
 );
 
-const Tape: React.FC<{ x: number; y: number; rotate: number; width?: number }> = ({ x, y, rotate, width = 120 }) => (
+export const Tape: React.FC<{ x: number; y: number; rotate: number; width?: number }> = ({ x, y, rotate, width = 120 }) => (
   <div
     style={{
       position: "absolute",
