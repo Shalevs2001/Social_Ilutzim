@@ -547,14 +547,22 @@ const SCENE_COMPONENTS: React.FC<{ frames: number }>[] = [
 
 /* ---------- main ---------- */
 
-// Election-blue backdrop for the standalone MP4.
-const BLUE_BACKDROP = [
-  "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.14) 0%, transparent 60%)",
-  "repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 2px, transparent 2px, transparent 40px)",
-  "linear-gradient(160deg, #0A2A6B 0%, #1446A0 55%, #0B2F78 100%)",
-].join(", ");
+// Solid backdrops for the standalone MP4s.
+const backdrop = (from: string, mid: string, to: string) =>
+  [
+    "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.14) 0%, transparent 60%)",
+    "repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 2px, transparent 2px, transparent 40px)",
+    `linear-gradient(160deg, ${from} 0%, ${mid} 55%, ${to} 100%)`,
+  ].join(", ");
+const BACKDROPS = {
+  blue: backdrop("#0A2A6B", "#1446A0", "#0B2F78"),
+  purple: backdrop("#2A0E5C", "#5B21B6", "#3B0F7A"),
+};
 
-export const BallotGraphics: React.FC<{ chroma?: boolean; blue?: boolean }> = ({ chroma = false, blue = false }) => {
+export const BallotGraphics: React.FC<{ chroma?: boolean; background?: keyof typeof BACKDROPS }> = ({
+  chroma = false,
+  background,
+}) => {
   setChromaMode(chroma);
   let from = 0;
   return (
@@ -563,7 +571,7 @@ export const BallotGraphics: React.FC<{ chroma?: boolean; blue?: boolean }> = ({
         fontFamily,
         direction: "rtl",
         backgroundColor: chroma ? KEY_GREEN : undefined,
-        backgroundImage: blue ? BLUE_BACKDROP : undefined,
+        backgroundImage: background ? BACKDROPS[background] : undefined,
       }}
     >
       {SCENES.map((scene, i) => {
@@ -601,7 +609,16 @@ export const BallotComposition = () => (
     <Composition
       id="TwoBallotsBlue"
       component={BallotGraphics}
-      defaultProps={{ blue: true }}
+      defaultProps={{ background: "blue" }}
+      durationInFrames={DURATION}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+    />
+    <Composition
+      id="TwoBallotsPurple"
+      component={BallotGraphics}
+      defaultProps={{ background: "purple" }}
       durationInFrames={DURATION}
       fps={FPS}
       width={WIDTH}
