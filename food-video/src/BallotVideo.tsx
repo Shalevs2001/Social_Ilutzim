@@ -36,11 +36,11 @@ const SCENES = [
   { name: "White slip", frames: 80 },
   { name: "Green slip", frames: 80 },
   { name: "First passes", frames: 106 },
-  { name: "First fails", frames: 116 },
+  { name: "First fails", frames: 111 },
   { name: "Two wins", frames: 36 },
-  { name: "No wasted votes", frames: 122 },
-  { name: "No strategic voting", frames: 172 },
-  { name: "Stability", frames: 130 },
+  { name: "No wasted votes", frames: 112 },
+  { name: "No strategic voting", frames: 177 },
+  { name: "Stability", frames: 140 },
   { name: "Power to the people", frames: 146 },
   { name: "What do you think", frames: 36 },
 ];
@@ -352,7 +352,7 @@ const FirstFails: React.FC<{ frames: number }> = ({ frames }) => {
       <ChartFrame />
       <Bar name="Party 1" x={BAR_X[0]} color={WHITE} height={interpolate(frame, [10, 40], [0, 170], { ...clamp, easing: outExpo })} />
       <Bar name="Party 2" x={BAR_X[1]} color={green()} height={interpolate(frame, [10, 40], [0, 360], { ...clamp, easing: outExpo })} />
-      <Pop at={44} name="Failed" x={BAR_X[0] - 960} y={60}>
+      <Pop at={24} name="Failed" x={BAR_X[0] - 960} y={60}>
         <Emoji name="cross" size={170} />
       </Pop>
       <FlyingSlip
@@ -385,13 +385,13 @@ const TwoWins: React.FC<{ frames: number }> = ({ frames }) => (
 const NoWastedVotes: React.FC<{ frames: number }> = ({ frames }) => {
   const frame = useCurrentFrame();
   const drops = [
-    { x: -150, at: 6 },
-    { x: 90, at: 14 },
-    { x: -40, at: 22 },
-    { x: 160, at: 30 },
-    { x: -120, at: 38 },
-    { x: 30, at: 46 },
-    { x: 120, at: 54 },
+    { x: -150, at: 4 },
+    { x: 90, at: 9 },
+    { x: -40, at: 14 },
+    { x: 160, at: 19 },
+    { x: -120, at: 24 },
+    { x: 30, at: 29 },
+    { x: 120, at: 34 },
   ];
   return (
     <Scene frames={frames}>
@@ -402,11 +402,11 @@ const NoWastedVotes: React.FC<{ frames: number }> = ({ frames }) => {
           style={{
             position: "absolute",
             left: 960 + d.x,
-            top: interpolate(frame, [d.at, d.at + 22], [-180, 560], { ...clamp, easing: Easing2 }),
+            top: interpolate(frame, [d.at, d.at + 16], [-180, 560], { ...clamp, easing: Easing2 }),
             translate: "-50% -50%",
             rotate: `${(i % 2 ? 1 : -1) * (15 + i * 4)}deg`,
             filter: shadow(),
-            opacity: interpolate(frame, [d.at + 18, d.at + 24], [1, 0], clamp),
+            opacity: interpolate(frame, [d.at + 13, d.at + 18], [1, 0], clamp),
           }}
         >
           <Slip color={i % 3 === 0 ? green() : WHITE} width={110} />
@@ -415,7 +415,7 @@ const NoWastedVotes: React.FC<{ frames: number }> = ({ frames }) => {
       <Pop at={0} name="Trash" y={200}>
         <Emoji name="trash" size={340} />
       </Pop>
-      <Pop at={84} name="No more" y={100}>
+      <Pop at={58} name="No more" y={100}>
         <Emoji name="prohibited" size={520} />
       </Pop>
     </Scene>
@@ -430,17 +430,19 @@ const NoStrategic: React.FC<{ frames: number }> = ({ frames }) => {
     <Scene frames={frames}>
       <Pop at={0} name="Strategy" x={-420}>
         <Emoji name="pawn" size={320} />
-        <CrossOut at={35} size={380} />
       </Pop>
-      <Pop at={80} name="Backup" x={260} y={40}>
+      <Pop at={30} name="No strategy" x={-420}>
+        <CrossOut at={-100} size={380} />
+      </Pop>
+      <Pop at={110} name="Backup" x={260} y={40}>
         <Emoji name="buoy" size={320} />
       </Pop>
-      <Pop at={95} name="Green slip" x={560} y={60}>
+      <Pop at={125} name="Green slip" x={560} y={60}>
         <div style={{ rotate: `${8 + Math.sin(frame / 10) * 4}deg` }}>
           <Slip color={green()} n={2} width={200} />
         </div>
       </Pop>
-      <Pop at={130} name="Covered" x={420} y={-300}>
+      <Pop at={160} name="Covered" x={420} y={-300}>
         <CheckBadge size={170} />
       </Pop>
     </Scene>
@@ -454,23 +456,18 @@ const Stability: React.FC<{ frames: number }> = ({ frames }) => {
   const colors = [RED, BLUE, YELLOW, green(), WHITE];
   return (
     <Scene frames={frames}>
-      <AbsoluteFill
-        style={{
-          opacity: interpolate(frame, [50, 66], [1, 0], clamp),
-          translate: interpolate(frame, [50, 66], ["0px 0px", "0px 120px"], { ...clamp, easing: inOut }),
-        }}
-      >
+      <AbsoluteFill>
         {minis.map((h, i) => (
           <Interactive.Div
             key={i}
             name={`Mini party ${i + 1}`}
             style={{
               position: "absolute",
-              left: 400 + i * 95,
-              top: 800 - h,
-              width: 70,
-              height: interpolate(frame, [i * 3, i * 3 + 12], [0, h], { ...clamp, easing: outExpo }),
-              borderRadius: "14px 14px 0 0",
+              left: 255 + i * 120,
+              top: 780 - h * 2,
+              width: 90,
+              height: interpolate(frame, [i * 2, i * 2 + 10], [0, h * 2], { ...clamp, easing: outExpo }),
+              borderRadius: "18px 18px 0 0",
               backgroundColor: colors[i % colors.length],
               filter: shadow(),
               translate: `0px ${Math.sin(frame / 2 + i) * 8}px`,
@@ -478,11 +475,16 @@ const Stability: React.FC<{ frames: number }> = ({ frames }) => {
           />
         ))}
       </AbsoluteFill>
-      <Pop at={68} name="Stable" y={20}>
-        <Emoji name="capitol" size={420} />
-      </Pop>
-      <Pop at={98} name="Stable check" x={300} y={-220}>
-        <CheckBadge size={170} />
+      <Pop at={70} name="No mini parties" y={90}>
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: 1560, height: 420, display: "block" }}>
+          <path
+            d="M3 6 L97 94 M97 6 L3 94"
+            stroke={RED}
+            strokeWidth={26}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
       </Pop>
     </Scene>
   );
@@ -494,20 +496,20 @@ const PowerToPeople: React.FC<{ frames: number }> = ({ frames }) => {
   const crowd = [-3, -2, -1, 0, 1, 2, 3];
   return (
     <Scene frames={frames}>
-      <AbsoluteFill style={{ opacity: interpolate(frame, [62, 72], [1, 0], clamp) }}>
-        <Pop at={0} name="TV" x={-120}>
+      <AbsoluteFill style={{ opacity: interpolate(frame, [66, 76], [1, 0], clamp) }}>
+        <Pop at={15} name="TV" x={-120}>
           <Emoji name="tv" size={400} />
         </Pop>
-        <Pop at={14} name="Popcorn" x={260} y={120}>
+        <Pop at={29} name="Popcorn" x={260} y={120}>
           <Emoji name="popcorn" size={240} />
         </Pop>
       </AbsoluteFill>
       {crowd.map((d, i) => (
-        <Pop key={d} at={74 + i * 3} name={`Citizen ${d}`} x={d * 190} y={200}>
+        <Pop key={d} at={78 + i * 3} name={`Citizen ${d}`} x={d * 190} y={200}>
           <Person color={BLUE} size={1.2} />
         </Pop>
       ))}
-      <Pop at={96} name="Fist" y={-180}>
+      <Pop at={100} name="Fist" y={-180}>
         <div style={{ translate: `0px ${Math.sin(frame / 6) * 14}px` }}>
           <Emoji name="fist" size={300} />
         </div>
@@ -545,11 +547,25 @@ const SCENE_COMPONENTS: React.FC<{ frames: number }>[] = [
 
 /* ---------- main ---------- */
 
-export const BallotGraphics: React.FC<{ chroma?: boolean }> = ({ chroma = false }) => {
+// Election-blue backdrop for the standalone MP4.
+const BLUE_BACKDROP = [
+  "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.14) 0%, transparent 60%)",
+  "repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 2px, transparent 2px, transparent 40px)",
+  "linear-gradient(160deg, #0A2A6B 0%, #1446A0 55%, #0B2F78 100%)",
+].join(", ");
+
+export const BallotGraphics: React.FC<{ chroma?: boolean; blue?: boolean }> = ({ chroma = false, blue = false }) => {
   setChromaMode(chroma);
   let from = 0;
   return (
-    <AbsoluteFill style={{ fontFamily, direction: "rtl", backgroundColor: chroma ? KEY_GREEN : undefined }}>
+    <AbsoluteFill
+      style={{
+        fontFamily,
+        direction: "rtl",
+        backgroundColor: chroma ? KEY_GREEN : undefined,
+        backgroundImage: blue ? BLUE_BACKDROP : undefined,
+      }}
+    >
       {SCENES.map((scene, i) => {
         const Component = SCENE_COMPONENTS[i];
         const start = from;
@@ -577,6 +593,15 @@ export const BallotComposition = () => (
       id="TwoBallotsGreen"
       component={BallotGraphics}
       defaultProps={{ chroma: true }}
+      durationInFrames={DURATION}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+    />
+    <Composition
+      id="TwoBallotsBlue"
+      component={BallotGraphics}
+      defaultProps={{ blue: true }}
       durationInFrames={DURATION}
       fps={FPS}
       width={WIDTH}
